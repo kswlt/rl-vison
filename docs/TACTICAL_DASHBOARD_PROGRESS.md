@@ -255,4 +255,5 @@ cd web && npm run build                 # 前端构建验证
 - M8a 提交：`5bcec77` feat(ai): add tactical RL inference API and AI analysis tab…（+ `9a56d20` tsbuildinfo）。
 - M8/M9 提交：`712d34a` feat(ai,similarity): train real BC checkpoint, wire full-obs inference +
   disagreement scan, and add similar-state retrieval with cached 613-game feature table。
-- M10 提交：本阶段完成后更新 SHA（feat(brief): add rule-based tactical brief + one-page brief tab）。
+- M10 提交：`fead848` feat(brief): add rule-based tactical brief (opening/outpost-pressure/endgame)
+  with sample sizes and real evidence cases, one-page print-friendly brief tab, and bilibili metadata-only notices。
