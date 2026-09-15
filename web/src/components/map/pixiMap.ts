@@ -496,8 +496,20 @@ export class TacticalField {
             const rOut = this.scale * 0.45
             if (ra.yaw_ok) {
               const ang = (yaw * Math.PI) / 180
-              v.dir.setStrokeStyle({ width: 2, color: v.camp === '红' ? RED : BLUE, alpha: 0.9 })
-              v.dir.moveTo(0, 0).lineTo(Math.cos(ang) * rOut * 1.5, Math.sin(ang) * rOut * 1.5).stroke()
+              const len = rOut * 2.2
+              const dx = Math.cos(ang), dy = Math.sin(ang)
+              const col = v.camp === '红' ? RED : BLUE
+              // shaft
+              v.dir.setStrokeStyle({ width: 3, color: col, alpha: 1 })
+                .moveTo(0, 0).lineTo(dx * len, dy * len).stroke()
+              // arrow head triangle
+              const hx = dx * len, hy = dy * len
+              const px = -dy, py = dx
+              v.dir.poly([
+                hx + px * 5, hy + py * 5,
+                hx - px * 5, hy - py * 5,
+                hx + dx * 8, hy + dy * 8,
+              ]).fill({ color: col, alpha: 1 })
             }
           }
           // hp ring

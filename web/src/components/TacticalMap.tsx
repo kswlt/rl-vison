@@ -132,6 +132,37 @@ export default function TacticalMap() {
 
   const [layersOpen, setLayersOpen] = useState(false)
 
+  // live win-probability bar (heuristic from current HP/structure)
+  const [winPct, setWinPct] = useState<number | null>(null)
+  const lastWinT = useRef(-1)
+  useEffect(() => {
+    if (!gameId) { setWinPct(null); return }
+    const tSec = Math.floor(time)
+    if (tSec === lastWinT.current) return
+    lastWinT.current = tSec
+    let cancelled = false
+    api.state(gameId, tSec).then((st) => {
+      if (cancelled) return
+      let rHp = 0, bHp = 0, rAlive = 0, bAlive = 0
+      for (const r of st.robots) {
+        if (r.camp === '红') { rHp += r.hp; if (r.alive) rAlive++ }
+        else { bHp += r.hp; if (r.alive) bAlive++ }
+      }
+      for (const b of st.buildings || []) {
+        if (b.camp === '红') rHp += b.hp * 0.5
+        else bHp += b.hp * 0.5
+      }
+      const total = rHp + bHp
+      if (total <= 0) { setWinPct(null); return }
+      // simple sigmoid around HP ratio + numbers bonus
+      const hpRatio = rHp / total
+      const numBonus = (rAlive - bAlive) * 0.04
+      const p = 1 / (1 + Math.exp(-(hpRatio - 0.5) * 6 - numBonus))
+      setWinPct(Math.round(p * 100))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [gameId, time])
+
   return (
     <div className="map-stage" style={{
       backgroundImage: 'url(/api/field/background.jpeg)',
@@ -141,6 +172,30 @@ export default function TacticalMap() {
       backgroundColor: '#0d1117',
     }}>
       <div ref={mountRef} style={{ position: 'absolute', inset: 0 }} />
+
+      {/* live win probability bar */}
+      {winPct != null && (
+        <div style={{
+          position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 5, width: 320,
+        }}>
+          <div style={{
+            display: 'flex', height: 18, borderRadius: 9, overflow: 'hidden',
+            border: '1px solid rgba(255,255,255,.15)',
+            background: 'rgba(0,0,0,.5)',
+          }}>
+            <div style={{ width: `${winPct}%`, background: '#ff5b3d', transition: 'width .5s' }} />
+            <div style={{ width: `${100 - winPct}%`, background: '#4d9dff', transition: 'width .5s' }} />
+          </div>
+          <div style={{
+            display: 'flex', justifyContent: 'space-between', fontSize: 10,
+            color: '#fff', marginTop: 2, textShadow: '0 1px 2px #000',
+          }}>
+            <span style={{ color: '#ff8a6a' }}>红 {winPct}%</span>
+            <span style={{ color: '#8ab8ff' }}>蓝 {100 - winPct}%</span>
+          </div>
+        </div>
+      )}
 
       {!ready && (
         <div style={{ color: theme.textFaint, fontSize: 12 }}>
