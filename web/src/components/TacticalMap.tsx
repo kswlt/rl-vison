@@ -132,7 +132,7 @@ export default function TacticalMap() {
 
   const [layersOpen, setLayersOpen] = useState(false)
 
-  // live win-probability bar (heuristic from current HP/structure)
+  // live win-probability bar (heuristic: HP + structure + numbers + time)
   const [winPct, setWinPct] = useState<number | null>(null)
   const lastWinT = useRef(-1)
   useEffect(() => {
@@ -148,16 +148,24 @@ export default function TacticalMap() {
         if (r.camp === '红') { rHp += r.hp; if (r.alive) rAlive++ }
         else { bHp += r.hp; if (r.alive) bAlive++ }
       }
+      let rBase = 0, bBase = 0, rOutpost = 0, bOutpost = 0
       for (const b of st.buildings || []) {
-        if (b.camp === '红') rHp += b.hp * 0.5
-        else bHp += b.hp * 0.5
+        const hp = b.hp, max = b.maxhp || 1
+        if (b.camp === '红') {
+          if (/基地/.test(b.rtype)) rBase = hp / max
+          else if (/前哨/.test(b.rtype)) rOutpost = hp / max
+        } else {
+          if (/基地/.test(b.rtype)) bBase = hp / max
+          else if (/前哨/.test(b.rtype)) bOutpost = hp / max
+        }
       }
-      const total = rHp + bHp
-      if (total <= 0) { setWinPct(null); return }
-      // simple sigmoid around HP ratio + numbers bonus
-      const hpRatio = rHp / total
-      const numBonus = (rAlive - bAlive) * 0.04
-      const p = 1 / (1 + Math.exp(-(hpRatio - 0.5) * 6 - numBonus))
+      const totalRobot = rHp + bHp || 1
+      const hpRatio = rHp / totalRobot
+      const numDiff = (rAlive - bAlive) / 6  // -1..1
+      const structDiff = (rBase + rOutpost * 0.5) - (bBase + bOutpost * 0.5)
+      // logistic: HP ratio dominant, numbers + structure secondary
+      const logit = (hpRatio - 0.5) * 4 + numDiff * 0.8 + structDiff * 1.2
+      const p = 1 / (1 + Math.exp(-logit))
       setWinPct(Math.round(p * 100))
     }).catch(() => {})
     return () => { cancelled = true }
