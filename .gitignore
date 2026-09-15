@@ -63,3 +63,10 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# ---- frontend build ---------------------------------------------------------
+# node_modules stays local; the compiled dist IS tracked so the production
+# FastAPI server can serve the UI without a Node toolchain on hand.
+web/node_modules/
+!web/dist/
+!web/dist/**/
