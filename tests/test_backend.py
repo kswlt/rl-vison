@@ -121,14 +121,35 @@ def test_piecewise_alignment(meta):
     assert abs(vt - (222 + (405 - 222) / 2)) < 1e-6
 
 
+def test_video_library(client):
+    r = client.post("/api/videos/library", json=dict(
+        platform="bilibili", bvid="BV18Tup6uEg5",
+        url="https://www.bilibili.com/video/BV18Tup6uEg5/",
+        title="全国赛 第五十三场", note="demo"))
+    assert r.status_code == 200
+    lib_id = r.json()["id"]
+    r2 = client.get("/api/videos/library")
+    assert r2.status_code == 200
+    assert any(v["id"] == lib_id for v in r2.json())
+    # associate onto a real game in the fixture DB
+    r3 = client.post(f"/api/videos/library/{lib_id}/associate",
+                     params={"game_id": 1001})
+    assert r3.status_code == 200
+    assert r3.json()["game_id"] == 1001
+    # associating onto a non-existent game is rejected
+    r4 = client.post(f"/api/videos/library/{lib_id}/associate",
+                     params={"game_id": 999999})
+    assert r4.status_code == 404
+
+
 def test_video_api(client):
     r = client.post("/api/videos", json=dict(
-        game_id=1001, platform="bilibili", bvid="BV18Tup6uEg5",
+        game_id=1002, platform="bilibili", bvid="BV18Tup6uEg5",
         url="https://www.bilibili.com/video/BV18Tup6uEg5/",
         title="全国赛 第五十三场", offset=222))
     assert r.status_code == 200
     vid = r.json()["id"]
-    r2 = client.get("/api/videos/1001")
+    r2 = client.get("/api/videos/1002")
     assert r2.status_code == 200 and len(r2.json()) == 1
     r3 = client.post(f"/api/videos/{vid}/anchors", json=dict(
         game_time=180, video_time=405, confidence=0.9))

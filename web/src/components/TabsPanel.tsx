@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { useConditions, useLayers, useMatchup, useSelection } from '../state/store'
-import type { Formation, Heatmap, Matchup } from '../types'
+import type { Formation, Heatmap, Matchup, VideoLibrary } from '../types'
 import * as echarts from 'echarts'
 import { theme } from '../theme'
+import BiliPlayer from './video/BiliPlayer'
 
 const TABS = [
   { key: 'heat', label: '条件统计' },
@@ -33,7 +34,7 @@ export default function TabsPanel() {
         {tab === 'formation' && <FormationTab />}
         {tab === 'matchup' && <MatchupTab />}
         {tab === 'ai' && <div className="empty">AI 分析：RL 集成在 M8 接入</div>}
-        {tab === 'evidence' && <div className="empty">历史证据：录像集成在 M7 接入</div>}
+        {tab === 'evidence' && <EvidenceTab />}
       </div>
     </div>
   )
@@ -225,6 +226,90 @@ function MatchupTab() {
             <div ref={chartRef} style={{ height: 120, width: '100%', marginTop: 6 }} />
           </>
         )}
+      </div>
+    </div>
+  )
+}
+
+function EvidenceTab() {
+  const [lib, setLib] = useState<VideoLibrary[] | null>(null)
+  const [assoc, setAssoc] = useState<Record<number, string>>({})
+  const [msg, setMsg] = useState('')
+  const [previewId, setPreviewId] = useState<number | null>(null)
+
+  useEffect(() => {
+    api.videoLibrary().then(setLib).catch(() => setLib([]))
+  }, [])
+
+  const associate = async (libId: number) => {
+    const gid = Number(assoc[libId])
+    if (!gid) { setMsg('请输入 game_id'); return }
+    try {
+      await api.videoLibraryAssociate(libId, gid)
+      setMsg(`已关联 game_id=${gid}，刷新比赛页可见`)
+    } catch (e) { setMsg(String(e)) }
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div>
+        <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>
+          视频库（B站仅存 URL/BVID/元数据，不下载视频）
+        </div>
+        {!lib && <div className="empty">加载中…</div>}
+        {lib && lib.length === 0 && <div className="empty">视频库为空</div>}
+        {lib?.map((v) => (
+          <div key={v.id} style={{
+            border: '1px solid var(--border)', borderRadius: 4, padding: 8, marginBottom: 8,
+          }}>
+            <div style={{ fontSize: 12.5, fontWeight: 600 }}>{v.title}</div>
+            <div className="dim" style={{ fontSize: 11, marginTop: 2 }}>
+              {v.bvid} · {v.note || '无备注'}
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
+              <a className="btn" style={{ fontSize: 11, textDecoration: 'none' }}
+                href={v.url} target="_blank" rel="noopener noreferrer">
+                在B站打开
+              </a>
+              <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }}
+                onClick={() => setPreviewId((p) => (p === v.id ? null : v.id))}>
+                {previewId === v.id ? '收起预览' : '预览'}
+              </button>
+              <input
+                value={assoc[v.id] ?? ''}
+                onChange={(e) => setAssoc((s) => ({ ...s, [v.id]: e.target.value }))}
+                placeholder="game_id"
+                style={{
+                  width: 76, background: 'var(--bg)', border: '1px solid var(--border)',
+                  color: 'var(--text)', borderRadius: 3, padding: '3px 6px', fontSize: 11,
+                }}
+              />
+              <button className="btn" style={{ fontSize: 11, padding: '3px 8px' }}
+                onClick={() => void associate(v.id)}>
+                关联到比赛
+              </button>
+            </div>
+            {previewId === v.id && (
+              <div style={{ marginTop: 8 }}>
+                <BiliPlayer bvid={v.bvid} startAt={0} seekToken={0} height={180} />
+              </div>
+            )}
+          </div>
+        ))}
+        {msg && <div className="dim" style={{ fontSize: 11, color: 'var(--ai)' }}>{msg}</div>}
+        <div className="dim" style={{ fontSize: 11, marginTop: 8 }}>
+          全国赛第五十三场（上海交通大学 vs 广东工业大学，BV18Tup6uEg5）不在 2026
+          区域赛数据集中，故置于视频库而非伪造 game_id；如后续数据库包含该场，可用
+          game_id 关联后获得完整时间同步。
+        </div>
+      </div>
+      <div>
+        <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>
+          事件证据（点击「播放」跳到对应比赛与时刻）
+        </div>
+        <div className="empty">
+          从「战术结论」选择某个行为（如 回防 71%）后展开真实案例，此处将联动地图与录像。
+        </div>
       </div>
     </div>
   )

@@ -7,9 +7,11 @@ import OpponentPanel from './components/OpponentPanel'
 import TacticalMap from './components/TacticalMap'
 import ConclusionsPanel from './components/ConclusionsPanel'
 import TabsPanel from './components/TabsPanel'
+import VideoPanel from './components/video/VideoPanel'
 
 export default function App() {
   const loadTeams = useSelection((s) => s.loadTeams)
+  const gameId = useSelection((s) => s.gameId)
 
   useEffect(() => {
     void loadTeams()
@@ -23,6 +25,7 @@ export default function App() {
         <OpponentPanel />
         <div className="panel map-panel">
           <TacticalMap />
+          {gameId && <VideoPanel gameId={gameId} />}
         </div>
         <ConclusionsPanel />
       </div>

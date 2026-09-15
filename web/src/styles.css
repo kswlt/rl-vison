@@ -148,6 +148,15 @@ select:focus, input:focus { border-color: var(--ai); }
 
 /* map is the visual centre */
 .map-panel { background: var(--bg); }
+.video-panel-wrap {
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  max-height: 252px;
+  overflow-y: auto;
+}
+@media (max-width: 1180px) {
+  .video-panel-wrap { display: none; }
+}
 .map-stage {
   flex: 1;
   position: relative;

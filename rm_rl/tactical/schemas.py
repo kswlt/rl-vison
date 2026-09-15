@@ -255,6 +255,23 @@ class VideoOut(BaseModel):
     anchors: List[Dict[str, Any]] = Field(default_factory=list)
 
 
+class VideoLibraryIn(BaseModel):
+    platform: str = "bilibili"
+    bvid: str = ""
+    url: str = ""
+    title: str = ""
+    note: str = ""
+
+
+class VideoLibraryOut(BaseModel):
+    id: int
+    platform: str = "bilibili"
+    bvid: str = ""
+    url: str = ""
+    title: str = ""
+    note: str = ""
+
+
 class VideoIn(BaseModel):
     game_id: int
     platform: str = "bilibili"

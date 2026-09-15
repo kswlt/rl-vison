@@ -6,7 +6,7 @@
 import type {
   EventBehavior, EventItem, Flow, Formation, Heatmap, Match, MatchState,
   MatchStates, MatchTimeline, Matchup, Team, TeamMatch, TeamProfile, Video,
-  VideoAnchor, TacticalConditions,
+  VideoAnchor, VideoLibrary, TacticalConditions,
 } from '../types'
 
 const BASE = '/api'
@@ -93,4 +93,10 @@ export const api = {
     get<{ game_time: number | null }>(`/videos/${videoId}/map`, { video_time: videoTime }),
   mapToVideo: (videoId: number, gameTime: number) =>
     get<{ video_time: number | null }>(`/videos/${videoId}/inverse`, { game_time: gameTime }),
+
+  videoLibrary: () => get<VideoLibrary[]>('/videos/library'),
+  videoLibraryAdd: (v: { platform?: string; bvid: string; url: string; title: string; note?: string }) =>
+    post<VideoLibrary>('/videos/library', v),
+  videoLibraryAssociate: (libId: number, gameId: number) =>
+    post<Video>(`/videos/library/${libId}/associate?game_id=${gameId}`, {}),
 }

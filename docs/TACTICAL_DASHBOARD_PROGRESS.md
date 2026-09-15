@@ -7,6 +7,19 @@
 
 ## 最近一次验证结果
 
+- **M7（Bilibili 视频集成）验证（2026-09-15）**：
+  - 视频库：`python -m rm_rl.tactical.seed_videos` 幂等写入全国赛第五十三场
+    （上海交通大学 交龙战队 VS 广东工业大学 DynamicX战队，BV18Tup6uEg5），
+    note 明示"全国赛不在 2026 区域赛数据集，仅作视频库演示"——不伪造 game_id。
+  - 浏览器端到端：历史证据 tab → 视频库条目 → [预览] → 官方 iframe
+    `player.bilibili.com/player.html?bvid=BV18Tup6uEg5&t=0&danmaku=0&autoplay=0&high_quality=1`
+    加载成功（弹幕默认关、不自动播放）；[在B站打开] 链接可用；console 0 错误。
+  - 时间同步链路（API 验证，临时关联后清理）：offset=222 + 多锚点
+    (0→222, 180→405, 360→591) → game 0/90/180/270/360 s ⇒ video
+    222/313.5/405/498/591 s；反向 video 313.5 s ⇒ game 90 s，分段线性精确。
+  - 比赛页 VideoPanel（播放器 + ●已校准/○未校准 + 暂停时 [设为比赛开始]/[新增锚点]
+    标定 UI + 平台时间→B站时间单向驱动）构建通过；窄屏（<1180px）按设计隐藏。
+  - `npm run build` 通过；`pytest tests` → **17 passed**（新增视频库关联测试）。
 - **M6（对手情报 + 对阵分析）验证（2026-09-15）**：
   - `GET /api/analytics/matchup?team_a=上海交通大学&team_b=广东工业大学`：3 场共同比赛、
     3 次首次交火（平均 24.7 s）、争夺区 121 格、双方位置热力 304/164 格；响应带
@@ -75,12 +88,23 @@
     分析时自动开启该图层；事件响应案例点击 → 跳转对应比赛 + 时间（地图/时间轴联动）。
   - 修复事件回调误调 zustand hook（React #321）→ `.getState()`。
 
+- [x] **M7 Bilibili 视频集成**
+  - 后端：`video_library` 表（无 game_id 的未关联视频，全国赛第五十三场 BV18Tup6uEg5
+    经 `python -m rm_rl.tactical.seed_videos` 幂等入库）；`GET/POST /api/videos/library`、
+    `POST /api/videos/library/{id}/associate`（只允许真实存在的 game_id）；
+    offset + 多锚点分段对齐双向映射（已有，API 验证）。
+  - 前端：`BiliPlayer`（官方 iframe，danmaku=0/autoplay=0，失败 fallback「在B站打开」；
+    seek 通过重建 iframe 的 t 参数，平台时间轴为主）；`VideoPanel`（比赛页录像面板：
+    多视频切换、●已校准/○未校准、暂停时 [设为比赛开始]/[新增锚点] 标定、平台时间→B站时间
+    单向驱动）；历史证据 tab 视频库（预览 + 关联到比赛，全国赛明确标注为视频库演示）。
+
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M7 Bilibili 视频集成**（BVID 存储、iframe、官方锚点标定 UI、证据片段、比赛视频库）。
+- 下一步：**M8 Offline RL 集成**（IQL/BC/DT 推理、policy overlay、人机分歧；
+  需先运行 `python -m rm_rl.data.vis_map` / `team_prior` 生成先验并训练/放置模型）。
 
 ## 如何运行（随里程碑更新）
 
@@ -136,4 +160,5 @@ cd web && npm run build                 # 前端构建验证
 - M3 提交：`54529b4` feat(map): add animated PixiJS tactical battlefield…。
 - M4 提交：`1b31641` feat(analytics): add disk tactical cache… + heatmap/flow overlays。
 - M5 提交：`5b1fc3d` feat(analytics): draw live formation polygons… + formation time-series。
-- M6 提交：见下一条（本阶段提交后更新 SHA）。
+- M6 提交：`d8e38b5` feat(opponent): add matchup analysis… with map overlay and event-case drill-down。
+- M7 提交：见下一条（本阶段提交后更新 SHA）。

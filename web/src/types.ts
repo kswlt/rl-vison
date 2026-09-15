@@ -244,6 +244,21 @@ export interface Video {
   anchors: VideoAnchor[]
 }
 
+export interface VideoLibrary {
+  id: number
+  platform: string
+  bvid: string
+  url: string
+  title: string
+  note: string
+}
+
+export interface VideoTimeMap {
+  video_id: number
+  game_time?: number | null
+  video_time?: number | null
+}
+
 export interface Inference {
   game_id: number
   t: number

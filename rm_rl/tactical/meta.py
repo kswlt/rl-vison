@@ -15,7 +15,8 @@ import sqlite3
 import time
 from typing import Dict, List, Optional
 
-from .schemas import AnchorIn, AnchorOut, VideoIn, VideoOut
+from .schemas import (AnchorIn, AnchorOut, VideoIn, VideoLibraryIn,
+                      VideoLibraryOut, VideoOut)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS match_videos (
@@ -35,6 +36,15 @@ CREATE TABLE IF NOT EXISTS video_alignment_points (
     game_time REAL NOT NULL,
     video_time REAL NOT NULL,
     confidence REAL NOT NULL DEFAULT 0.5
+);
+CREATE TABLE IF NOT EXISTS video_library (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform TEXT NOT NULL DEFAULT 'bilibili',
+    bvid TEXT NOT NULL DEFAULT '',
+    url TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    note TEXT NOT NULL DEFAULT '',
+    created_at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_mv_game ON match_videos(game_id);
 CREATE INDEX IF NOT EXISTS idx_vap_video ON video_alignment_points(match_video_id);
@@ -93,6 +103,42 @@ class MetaStore:
         return VideoOut(id=vid, game_id=game_id, platform=platform,
                         bvid=bvid, url=url, title=title, offset=offset,
                         alignment_status=status)
+
+    # -- video library (videos not tied to a game in this dataset) ----------
+    def library_add(self, v: VideoLibraryIn) -> VideoLibraryOut:
+        con = self._con()
+        cur = con.cursor()
+        cur.execute("INSERT INTO video_library (platform, bvid, url, title, "
+                    "note, created_at) VALUES (?,?,?,?,?,?)",
+                    (v.platform, v.bvid, v.url, v.title, v.note, time.time()))
+        vid = cur.lastrowid
+        con.commit()
+        out = self.library_video(vid, con=con)
+        con.close()
+        return out
+
+    def library_list(self) -> List[VideoLibraryOut]:
+        con = self._con()
+        rows = con.execute("SELECT * FROM video_library ORDER BY id").fetchall()
+        out = [self._row_to_library(r) for r in rows]
+        con.close()
+        return out
+
+    def library_video(self, video_id: int, con=None) -> Optional[VideoLibraryOut]:
+        close = con is None
+        con = con or self._con()
+        r = con.execute("SELECT * FROM video_library WHERE id=?",
+                        (int(video_id),)).fetchone()
+        out = self._row_to_library(r) if r else None
+        if close:
+            con.close()
+        return out
+
+    @staticmethod
+    def _row_to_library(r) -> VideoLibraryOut:
+        (vid, platform, bvid, url, title, note, created) = r
+        return VideoLibraryOut(id=vid, platform=platform, bvid=bvid, url=url,
+                               title=title, note=note)
 
     # -- anchors ------------------------------------------------------------
     def add_anchor(self, video_id: int, a: AnchorIn) -> AnchorOut:

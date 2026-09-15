@@ -11,10 +11,37 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from ...tactical.schemas import AnchorIn, AnchorOut, VideoIn, VideoOut
+from ...tactical.schemas import (AnchorIn, AnchorOut, VideoIn,
+                                 VideoLibraryIn, VideoLibraryOut, VideoOut)
 from .deps import get_state
 
 router = APIRouter(tags=["videos"])
+
+
+# -- video library -----------------------------------------------------------
+@router.get("/videos/library", response_model=list[VideoLibraryOut])
+def library_list(state=Depends(get_state)):
+    return state.meta.library_list()
+
+
+@router.post("/videos/library", response_model=VideoLibraryOut)
+def library_add(v: VideoLibraryIn, state=Depends(get_state)):
+    if not v.bvid and not v.url:
+        raise HTTPException(422, "bvid or url required")
+    return state.meta.library_add(v)
+
+
+@router.post("/videos/library/{lib_id}/associate", response_model=VideoOut)
+def library_associate(lib_id: int, game_id: int, state=Depends(get_state)):
+    """Move a library video onto a real match (only if that game exists)."""
+    lib = state.meta.library_video(lib_id)
+    if lib is None:
+        raise HTTPException(404, f"library video {lib_id} not found")
+    if state.store.match(game_id) is None:
+        raise HTTPException(404, f"game_id {game_id} not found")
+    return state.meta.add_video(VideoIn(
+        game_id=game_id, platform=lib.platform, bvid=lib.bvid, url=lib.url,
+        title=lib.title))
 
 
 @router.get("/videos/{game_id}", response_model=list[VideoOut])
