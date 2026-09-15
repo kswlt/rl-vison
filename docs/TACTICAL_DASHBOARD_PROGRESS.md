@@ -7,21 +7,16 @@
 
 ## 最近一次验证结果
 
-- **M4（多维空间分析 + 缓存）验证（2026-09-15）**：
-  - 磁盘战术缓存生效：`/api/teams/广东工业大学/profile` 首算 32.2 s → 命中缓存 3 ms；
-    `/api/analytics/heatmap?team=广东工业大学&rtype=步兵3&phase=open30` 首算 170 ms → 缓存 3 ms。
-    缓存键含 DB 签名（matches 行数 + 最大 game_id），换库自动失效。
-  - 浏览器端到端：选择队伍后开启「条件热力图」「运动流场」图层 → Pixi 地图叠加层渲染
-    （单色低饱和热力格 + 流场箭头，地图区域检出青色叠加像素），控制台 0 错误；
-    图层关闭/条件变化会重新请求；fire/hit/engage/routes 图层显示"后续里程碑接入"诚实占位。
-  - `pytest tests` → **15 passed**（缓存层未破坏任何现有契约）。
-- **M3（动态战术地图）验证（2026-09-15）**：states 批量端点 419 s 首算 390 ms；播放时
-  时间轴 00:00→00:11 前进、Pixi 地图连续插值渲染、地图区域像素差 >0；控制台 0 错误；
-  窄屏降级（<1180px 隐藏左右栏、地图占满）。
-- **M2（Frontend 框架）验证**：`npm run build` 通过；FastAPI 生产托管；teams 98 队；
-  画像渲染雷达 + 指标表。
-- **M1（Backend 基础）验证**：`pytest tests` → **15 passed**；真实库冒烟全通过。
-- **M0 验证**：仓库审计完成，架构文档落地。
+- **M5（阵型分析）验证（2026-09-15）**：
+  - 地图实时阵型：播放中每帧计算红蓝双方 centroid / 横向宽度 / 纵向纵深 / 平均间距 /
+    连接多边形 / 边界框，红蓝两色低饱和半透明绘制（地图区域检出红 109 + 蓝 525 像素），
+    控制台 0 错误。
+  - 阵型时序图补全：宽度/纵深/平均间距/集中程度四序列 ECharts（后端 formations 数据）。
+  - `npm run build` 通过；`pytest tests` 15 passed（无后端改动）。
+- **M4（多维空间分析 + 缓存）验证**：磁盘缓存 profile 32.2s→3ms、heatmap 170ms→3ms；
+  地图叠加层（条件热力图 + 运动流场）渲染，图层开关/条件联动，控制台 0 错误。
+- **M3（动态战术地图）验证**：states 批量端点 419s 首算 390ms；播放插值动画 + 事件动画正常。
+- **M2 / M1 / M0 验证**：`npm run build` 通过；`pytest tests` 15 passed；架构文档落地。
 
 ---
 
@@ -56,12 +51,17 @@
     标注 n / n_matches / 样本不足）与运动流场（箭头方向=平均运动、长度=速度、透明度=样本密度）；
     图层开关与条件筛选实时联动；fire/hit/engage/routes 图层诚实占位（不伪造数据）。
 
+- [x] **M5 阵型分析**
+  - 地图实时阵型层：播放中逐帧计算红蓝双方 centroid/宽度/纵深/平均间距、连接多边形与
+    边界框（红蓝低饱和半透明），随机器人连续移动。
+  - 阵型时序 tab 补全：宽度/纵深/平均间距/集中程度四序列（ECharts）。
+
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M5 阵型分析**（地图实时阵型多边形 + 时间序列图补全）。
+- 下一步：**M6 Opponent Intelligence**（对手画像页、事件响应与状态转移、matchup 分析）。
 
 ## 如何运行（随里程碑更新）
 
@@ -115,4 +115,5 @@ cd web && npm run build                 # 前端构建验证
 - M1 提交：`09a8e6c` feat(api): add FastAPI backend with team/match/timeline/analytics/video endpoints and tests。
 - M2 提交：`6a15e52` + `5ecfd99` feat(web): initialize React/TS tactical dashboard。
 - M3 提交：`54529b4` feat(map): add animated PixiJS tactical battlefield…。
-- M4 提交：见下一条（本阶段提交后更新 SHA）。
+- M4 提交：`1b31641` feat(analytics): add disk tactical cache… + heatmap/flow overlays。
+- M5 提交：见下一条（本阶段提交后更新 SHA）。

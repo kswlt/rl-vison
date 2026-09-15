@@ -64,6 +64,7 @@ export class TacticalField {
   private trailLayer!: Container  // robot trails
   private robotLayer!: Container  // robot sprites
   private fxLayer!: Container     // pulses / flashes
+  private formationLayer!: Container  // live formation polygon per camp
   private overlay!: Container     // heatmap / flow placeholder containers
   private robots = new Map<number, RobotView>()
   private states: MatchState[] = []
@@ -95,6 +96,7 @@ export class TacticalField {
     this.trailLayer = new Container()
     this.robotLayer = new Container()
     this.fxLayer = new Container()
+    this.formationLayer = new Container()
     this.overlay = new Container()
   }
 
@@ -113,6 +115,7 @@ export class TacticalField {
     app.stage.addChild(this.world)
     app.stage.addChild(this.overlay)
     app.stage.addChild(this.trailLayer)
+    app.stage.addChild(this.formationLayer)
     app.stage.addChild(this.robotLayer)
     app.stage.addChild(this.fxLayer)
     app.stage.addChild(this.timeLabel)
@@ -414,6 +417,48 @@ export class TacticalField {
           // sync label size
           v.label.style.fontSize = Math.max(9, this.scale * 0.5)
         }
+      }
+
+      // live formation per camp (centroid + bounding polygon + leader marks)
+      this.formationLayer.removeChildren()
+      if (this.flags.formation) {
+        const fg = new Graphics()
+        const camps: ('红' | '蓝')[] = ['红', '蓝']
+        for (const camp of camps) {
+          const pts: { x: number; y: number }[] = []
+          for (const v of this.robots.values()) {
+            if (v.camp !== camp || !v.root.visible) continue
+            const rr = v.rtype
+            if (rr === '基地' || rr === '前哨站') continue
+            pts.push({ x: v.root.x, y: v.root.y })
+          }
+          if (pts.length < 2) continue
+          const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length
+          const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length
+          const xs = pts.map((p) => p.x)
+          const ys = pts.map((p) => p.y)
+          const minX = Math.min(...xs), maxX = Math.max(...xs)
+          const minY = Math.min(...ys), maxY = Math.max(...ys)
+          const color = camp === '红' ? RED : BLUE
+          // bounding box (width x depth)
+          fg.setStrokeStyle({ width: 1, color, alpha: 0.35 })
+          fg.rect(minX - 6, minY - 6, maxX - minX + 12, maxY - minY + 12)
+            .stroke()
+          // centroid
+          fg.circle(cx, cy, 3).fill({ color, alpha: 0.9 })
+          fg.circle(cx, cy, 7).fill({ color, alpha: 0.15 })
+          // polygon connecting robots
+          fg.setStrokeStyle({ width: 1, color, alpha: 0.5 })
+          const order = pts
+            .map((p, i) => ({ p, i, a: Math.atan2(p.y - cy, p.x - cx) }))
+            .sort((m, n) => m.a - n.a)
+          fg.moveTo(order[0].p.x, order[0].p.y)
+          for (let k = 1; k < order.length; k++) {
+            fg.lineTo(order[k].p.x, order[k].p.y)
+          }
+          fg.closePath().stroke()
+        }
+        this.formationLayer.addChild(fg)
       }
 
       // event pulses for the current raw second
