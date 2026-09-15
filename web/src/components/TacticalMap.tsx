@@ -135,7 +135,8 @@ export default function TacticalMap() {
   return (
     <div className="map-stage" style={{
       backgroundImage: 'url(/api/field/background.jpeg)',
-      backgroundSize: '100% 100%',
+      backgroundSize: 'contain',
+      backgroundRepeat: 'no-repeat',
       backgroundPosition: 'center',
       backgroundColor: '#0d1117',
     }}>
