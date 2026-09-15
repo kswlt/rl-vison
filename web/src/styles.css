@@ -113,6 +113,30 @@ select, input[type="number"] {
 }
 select:focus, input:focus { border-color: var(--ai); }
 
+/* ---------- view switch: replay vs analytics ---------- */
+.view-switch {
+  display: flex;
+  gap: 2px;
+  padding: 4px 12px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.view-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  padding: 4px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.view-btn:hover { color: var(--text); }
+.view-btn.active {
+  background: var(--bg-elev);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 /* ---------- map fills all space, side panels are floating drawers ---------- */
 .map-full {
   flex: 1;

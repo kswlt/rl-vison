@@ -9,11 +9,14 @@ import ConclusionsPanel from './components/ConclusionsPanel'
 import TabsPanel from './components/TabsPanel'
 import VideoPanel from './components/video/VideoPanel'
 
+type View = 'replay' | 'analytics'
+
 export default function App() {
   const loadTeams = useSelection((s) => s.loadTeams)
   const gameId = useSelection((s) => s.gameId)
   const [leftOpen, setLeftOpen] = useState(false)
   const [rightOpen, setRightOpen] = useState(false)
+  const [view, setView] = useState<View>('replay')
 
   useEffect(() => {
     void loadTeams()
@@ -23,6 +26,22 @@ export default function App() {
     <div className="app">
       <Header />
       <FilterBar />
+
+      {/* view switch: replay = map + video; analytics = full analysis panels */}
+      <div className="view-switch">
+        <button
+          className={`view-btn ${view === 'replay' ? 'active' : ''}`}
+          onClick={() => setView('replay')}
+        >
+          比赛回放
+        </button>
+        <button
+          className={`view-btn ${view === 'analytics' ? 'active' : ''}`}
+          onClick={() => setView('analytics')}
+        >
+          战术分析
+        </button>
+      </div>
 
       {/* map is the visual centre, fills all space */}
       <div className="map-full">
@@ -55,7 +74,7 @@ export default function App() {
       </div>
 
       <Timeline />
-      <TabsPanel />
+      {view === 'analytics' && <TabsPanel />}
     </div>
   )
 }
