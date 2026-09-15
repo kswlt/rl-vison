@@ -7,6 +7,28 @@
 
 ## 最近一次验证结果
 
+- **M8（Offline RL 集成）验证（2026-09-15，进行中）**：
+  - 先验生成（真实数据）：`python -m rm_rl.data.team_prior --db … --out data/team_prior.json`
+    → 1226 条目 / 96 队 / cold-start 96（7.8%）；`python -m rm_rl.data.vis_map --db …
+    --out data/vis_map.npz --limit-games 100` → 112 cells / pair-coverage 71.0% /
+    global_engage_rate 0.0315。
+  - 推理管线（真实调用链，非 mock）：`rm_rl/tactical/rl.py` 的 `TacticalRL.obs_at`
+    走 `load_game_arrays → features.build_obs`（完整 161-D：ego/时间/6友军/6敌军/建筑/经济/
+    vis_map 优先级/team prior，蓝方镜像）；`human_action` 复用 `build_action_raw(tactical)`
+    读真人动作；`disagreement` = nav 方向余弦 + fire XOR + target argmax 差（[0,~3]）。
+  - `POST /api/inference` 无权重时返回 **501 诚实报错**（"模型未加载（IQL）：…请先运行
+    训练管线"），已验证；`POST /api/inference/disagreements` 逐秒扫描 Top-K，note 明示
+    "仅提示值得复盘，不表示 AI 更正确"。
+  - 训练数据构建（150 场子集）：`build_dataset --agent infantry --action-mode tactical
+    --goal-horizon 5 --vis-map data/vis_map.npz --team-prior data/team_prior.json
+    --limit-games 150` → obs 161 / act 10 / train 529 集 220,698 步 / val 59 集 24,570 步。
+  - 前端：AI 分析 tab（模型/兵种选择 → 当前局面推理 → 建议卡片：移动/目标/开火/人机分歧 +
+    青色 RL 建议箭头 overlay + 真人实际动作对比；全场分歧扫描 Top 20 列表点击跳转）构建通过。
+  - `npm run build` 通过；`pytest tests` → **22 passed**（新增 inference 501 / obs 161-D /
+    human_action / disagreement 评分 5 测试）。
+  - **进行中**：`train_offline --config configs/infantry_bc_tactical.yaml --max-steps 6000`
+    在 CPU 后台训练（数据就绪 22 万步）；完成后 `/api/inference` 从 501 变为真实输出并做
+    浏览器端到端验证，再提交 M8 最终 commit。
 - **M7（Bilibili 视频集成）验证（2026-09-15）**：
   - 视频库：`python -m rm_rl.tactical.seed_videos` 幂等写入全国赛第五十三场
     （上海交通大学 交龙战队 VS 广东工业大学 DynamicX战队，BV18Tup6uEg5），
@@ -98,13 +120,23 @@
     多视频切换、●已校准/○未校准、暂停时 [设为比赛开始]/[新增锚点] 标定、平台时间→B站时间
     单向驱动）；历史证据 tab 视频库（预览 + 关联到比赛，全国赛明确标注为视频库演示）。
 
+- [x] **M8a（Offline RL 推理管线 + AI 前端 tab，模型训练中）**
+  - 后端 `rm_rl/tactical/rl.py`：`TacticalRL` 懒加载 vis_map/team_prior/policy；
+    完整 161-D obs 构造（复用 `build_obs`，禁止只改 ego x/y）、真人动作读取、人机分歧评分；
+    `POST /api/inference` + `POST /api/inference/disagreements`（Pydantic 校验、501 诚实报错、
+    Top-K 扫描）。
+  - 前端：AI 分析 tab（BC/IQL/DT 选择、当前局面推理、青色 RL 建议箭头 overlay、
+    真人实际动作对比、全场分歧 Top 20 点击跳转）；types/client 补充 Inference/Disagreement。
+  - 数据/训练：team_prior.json（96 队）、vis_map.npz（100 场版）、150 场训练集已构建；
+    BC 模型训练中（`rm_runs/infantry_bc_tactical`）。
+
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M8 Offline RL 集成**（IQL/BC/DT 推理、policy overlay、人机分歧；
-  需先运行 `python -m rm_rl.data.vis_map` / `team_prior` 生成先验并训练/放置模型）。
+- 下一步：**M8 收尾**（BC 训练完成后验证真实推理 + 浏览器端到端）；**M9 相似历史局面检索**；
+  **M10 战术卡 + 自动战术总结**。
 
 ## 如何运行（随里程碑更新）
 
@@ -123,8 +155,19 @@ python -m rm_rl.api.app                 # http://127.0.0.1:8000 直接打开平�
 cd web && npm install && npm run dev    # http://localhost:5173
 
 # 测试
-python -m pytest tests -q               # 15 passed（后端）
+python -m pytest tests -q               # 22 passed（后端）
 cd web && npm run build                 # 前端构建验证
+
+# RL 推理（M8）
+# 先验（已生成，data/ 不入库）：
+#   python -m rm_rl.data.team_prior --db dataset/rmuc_2026_region_dataset.sqlite --out data/team_prior.json
+#   python -m rm_rl.data.vis_map --db dataset/rmuc_2026_region_dataset.sqlite --out data/vis_map.npz
+# 训练数据 + 模型：
+#   python -m rm_rl.data.build_dataset --db dataset/rmuc_2026_region_dataset.sqlite \
+#     --out data/infantry_tactical --agent infantry --action-mode tactical --goal-horizon 5 \
+#     --config configs/infantry_bc_tactical.yaml --vis-map data/vis_map.npz --team-prior data/team_prior.json
+#   python -m rm_rl.train.train_offline --config configs/infantry_bc_tactical.yaml
+#   权重落到 rm_runs/infantry_bc_tactical/{best.pt|final.pt}；env 可覆盖 RMUC_BC_DIR/RMUC_IQL_DIR/RMUC_DT_DIR
 ```
 
 ## 已知问题
@@ -133,6 +176,10 @@ cd web && npm run build                 # 前端构建验证
 - 全联盟 heatmap/flow 未加 limit 时逐场扫描（613 场），M4 引入 cache。
 - 刷新页面后前端选择状态重置（M2 未做 URL/持久化），后续里程碑补充。
 - B 站 iframe 双向控制受跨域限制：以平台时间轴为主时间轴，iframe 定位为单向 seek（M7 落实）。
+- **RL 推理当前依赖训练好的权重**：`rm_runs/infantry_bc_tactical` 训练完成前
+  `/api/inference` 返回 501（诚实"模型未加载"），前端 AI tab 同样提示；不提供伪造推理结果。
+- **vis_map 当前为 100 场子集版（pair-coverage 71%）**：全量 613 场版需去掉
+  `--limit-games` 重跑（耗时较长）；后续可直接覆盖 data/vis_map.npz。
 
 ## 数据假设
 
@@ -161,4 +208,5 @@ cd web && npm run build                 # 前端构建验证
 - M4 提交：`1b31641` feat(analytics): add disk tactical cache… + heatmap/flow overlays。
 - M5 提交：`5b1fc3d` feat(analytics): draw live formation polygons… + formation time-series。
 - M6 提交：`d8e38b5` feat(opponent): add matchup analysis… with map overlay and event-case drill-down。
-- M7 提交：见下一条（本阶段提交后更新 SHA）。
+- M7 提交：`3108444` feat(video): add bilibili match video integration…（视频库 + 关联 + 标定 UI）。
+- M8a 提交：`<M8a SHA>`（训练完成后随 M8 最终提交更新）。

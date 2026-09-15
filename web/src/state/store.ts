@@ -162,3 +162,15 @@ export const useMatchup = create<MatchupState>((set) => ({
   setMatchup: (a, b) => set({ teamA: a, teamB: b, active: true }),
   clearMatchup: () => set({ active: false }),
 }))
+
+export interface AIState {
+  ai: { egoX: number; egoY: number; gx: number; gy: number;
+    label: string } | null
+  setAI: (ai: AIState['ai']) => void
+}
+
+/** RL recommendation overlay state (drives the cyan arrow on the map). */
+export const useAI = create<AIState>((set) => ({
+  ai: null,
+  setAI: (ai) => set({ ai }),
+}))

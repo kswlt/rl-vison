@@ -275,6 +275,22 @@ export interface Inference {
   agree: Record<string, unknown>
 }
 
+export interface DisagreementItem {
+  game_id: number
+  t: number
+  score: number
+  rtype: string
+  camp: string
+  ai: Record<string, unknown>
+  human: Record<string, unknown>
+}
+
+export interface DisagreementOut {
+  model: string
+  items: DisagreementItem[]
+  note: string
+}
+
 /** Global tactical conditions used by the analysis panels. */
 export interface TacticalConditions {
   team: string

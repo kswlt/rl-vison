@@ -204,3 +204,49 @@ def test_team_profile(client):
     assert data["team_id"] == "测试大学A"
     keys = {m["key"] for m in data["metrics"]}
     assert "aggression" in keys and "front_occupancy" in keys
+
+# ---------------------------------------------------------------------------
+# Milestone 8: RL inference surface
+# ---------------------------------------------------------------------------
+def test_inference_501_when_model_missing(client):
+    r = client.post("/api/inference", json=dict(
+        game_id=1001, t=20, camp="红", rtype="步兵3", algo="iql"))
+    assert r.status_code == 501
+    assert "模型未加载" in r.json()["detail"]
+
+
+def test_inference_unknown_algo(client):
+    r = client.post("/api/inference", json=dict(
+        game_id=1001, t=20, algo="nope"))
+    assert r.status_code == 422
+
+
+def test_obs_at_full_dimension(db_path):
+    from rm_rl.tactical.rl import TacticalRL
+    rl = TacticalRL(db_path, vis_map=None, team_prior=None)
+    obs = rl.obs_at(1001, 20, "步兵3", "红")
+    assert obs.shape == (161,)
+    assert float(obs.sum()) != 0.0
+
+
+def test_human_action_from_log(db_path):
+    from rm_rl.tactical.rl import TacticalRL
+    rl = TacticalRL(db_path, vis_map=None, team_prior=None)
+    a = rl.human_action(1001, 20, "步兵3", "红")
+    assert a is not None and a["alive"] is True
+    assert "goal_dx" in a and "fire" in a
+
+
+def test_disagreement_scoring(db_path):
+    from rm_rl.tactical.rl import TacticalRL
+    rl = TacticalRL(db_path, vis_map=None, team_prior=None)
+    same = rl.disagreement(dict(alive=True, goal_dx=1, goal_dy=0, fire=True,
+                                target=3), dict(goal_dx=1, goal_dy=0, fire=True,
+                                                target=3))
+    assert same == 0.0
+    diff = rl.disagreement(dict(alive=True, goal_dx=-1, goal_dy=0, fire=True,
+                                target=3), dict(goal_dx=1, goal_dy=0,
+                                                fire=False, target=4))
+    assert diff >= 2.0
+    dead = rl.disagreement(dict(alive=False), dict(goal_dx=1, goal_dy=0))
+    assert dead == 1.5

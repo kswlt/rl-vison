@@ -4,9 +4,10 @@
  * the same origin in production.
  */
 import type {
-  EventBehavior, EventItem, Flow, Formation, Heatmap, Match, MatchState,
-  MatchStates, MatchTimeline, Matchup, Team, TeamMatch, TeamProfile, Video,
-  VideoAnchor, VideoLibrary, TacticalConditions,
+  DisagreementOut, EventBehavior, EventItem, Flow, Formation, Heatmap,
+  Inference, Match, MatchState, MatchStates, MatchTimeline, Matchup, Team,
+  TeamMatch, TeamProfile, Video, VideoAnchor, VideoLibrary,
+  TacticalConditions,
 } from '../types'
 
 const BASE = '/api'
@@ -99,4 +100,10 @@ export const api = {
     post<VideoLibrary>('/videos/library', v),
   videoLibraryAssociate: (libId: number, gameId: number) =>
     post<Video>(`/videos/library/${libId}/associate?game_id=${gameId}`, {}),
+
+  inference: (body: { game_id: number; t: number; camp?: string; rtype?: string; algo?: string }) =>
+    post<Inference>('/inference', body),
+  disagreements: (params: { game_id: number; algo?: string; rtype?: string; top_k?: number; step?: number }) =>
+    post<DisagreementOut>(`/inference/disagreements?${new URLSearchParams(
+      Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}`, {}),
 }

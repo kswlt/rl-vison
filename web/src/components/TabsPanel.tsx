@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import { useConditions, useLayers, useMatchup, useSelection } from '../state/store'
-import type { Formation, Heatmap, Matchup, VideoLibrary } from '../types'
+import { useAI, useConditions, useLayers, useMatchup, useSelection, useTimeline } from '../state/store'
+import type { DisagreementOut, Formation, Heatmap, Inference, Matchup, VideoLibrary } from '../types'
 import * as echarts from 'echarts'
 import { theme } from '../theme'
 import BiliPlayer from './video/BiliPlayer'
@@ -33,7 +33,7 @@ export default function TabsPanel() {
         {tab === 'heat' && <HeatTab />}
         {tab === 'formation' && <FormationTab />}
         {tab === 'matchup' && <MatchupTab />}
-        {tab === 'ai' && <div className="empty">AI 分析：RL 集成在 M8 接入</div>}
+        {tab === 'ai' && <AiTab />}
         {tab === 'evidence' && <EvidenceTab />}
       </div>
     </div>
@@ -225,6 +225,162 @@ function MatchupTab() {
             </div>
             <div ref={chartRef} style={{ height: 120, width: '100%', marginTop: 6 }} />
           </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function AiTab() {
+  const gameId = useSelection((s) => s.gameId)
+  const time = useTimeline((s) => s.time)
+  const seek = useTimeline((s) => s.seek)
+  const setAI = useAI((s) => s.setAI)
+  const layers = useLayers((s) => s.layers)
+  const setLayer = useLayers((s) => s.setLayer)
+  const [algo, setAlgo] = useState('iql')
+  const [rt, setRt] = useState('步兵3')
+  const [result, setResult] = useState<Inference | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState('')
+  const [dis, setDis] = useState<DisagreementOut | null>(null)
+  const [disLoading, setDisLoading] = useState(false)
+  const [disErr, setDisErr] = useState('')
+
+  const MODEL_STATE: Record<string, string> = {
+    bc: 'BC', iql: 'IQL', dt: 'Decision Transformer',
+  }
+
+  const runNow = () => {
+    if (!gameId) { setErr('请先选择一场比赛'); return }
+    setErr(''); setLoading(true)
+    api.inference({ game_id: gameId, t: Math.floor(time), camp: '红', rtype: rt, algo })
+      .then((r) => {
+        setResult(r)
+        setAI(r.human && (r.human as { alive?: boolean }).alive !== false
+          ? { egoX: 14, egoY: 7.5, gx: r.goal_dx, gy: r.goal_dy,
+            label: `${MODEL_STATE[algo]} · 目标 ${r.target_label}` }
+          : null)
+        setLayer('rl', true)
+      })
+      .catch((e) => setErr(String(e)))
+      .finally(() => setLoading(false))
+  }
+
+  const scanAll = () => {
+    if (!gameId) { setDisErr('请先选择一场比赛'); return }
+    setDisErr(''); setDisLoading(true); setDis(null)
+    api.disagreements({ game_id: gameId, algo, rtype: rt, top_k: 20, step: 1 })
+      .then(setDis)
+      .catch((e) => setDisErr(String(e)))
+      .finally(() => setDisLoading(false))
+  }
+
+  const jumpTo = (t: number) => {
+    seek(Math.max(0, t - 2))
+    setLayer('rl', true)
+  }
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div>
+          <label className="dim" style={{ fontSize: 12 }}>模型</label>
+          <select value={algo} onChange={(e) => setAlgo(e.target.value)}
+            style={{ width: '100%', marginTop: 2 }}>
+            {Object.entries(MODEL_STATE).map(([k, v]) => (
+              <option key={k} value={k}>{v}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="dim" style={{ fontSize: 12 }}>兵种</label>
+          <select value={rt} onChange={(e) => setRt(e.target.value)}
+            style={{ width: '100%', marginTop: 2 }}>
+            {['步兵3', '步兵4', '英雄', '哨兵', '工程', '空中'].map((x) => (
+              <option key={x} value={x}>{x}</option>
+            ))}
+          </select>
+        </div>
+        <button className="btn primary" onClick={runNow} disabled={loading || !gameId}>
+          {loading ? '推理中…' : `分析当前局面（${Math.floor(time)}s）`}
+        </button>
+        <button className="btn" onClick={scanAll} disabled={disLoading || !gameId}>
+          {disLoading ? '扫描中…' : '扫描全场人机分歧 Top 20'}
+        </button>
+        {err && <div className="empty">{err}</div>}
+        {disErr && <div className="empty">{disErr}</div>}
+        <div className="dim" style={{ fontSize: 10.5 }}>
+          {result?.human && (result.human as { alive?: boolean }).alive === false
+            ? '当前机器人已阵亡，无真人动作可对比'
+            : '青色箭头 = 模型建议移动方向/距离；真人实际动作来自官方日志（历史统计，不表示 AI 更正确）。'}
+          {!layers.rl && ' 打开「RL建议」图层以在地图上显示。'}
+        </div>
+      </div>
+      <div>
+        {result && (
+          <div style={{ marginBottom: 12 }}>
+            <div className="dim" style={{ fontSize: 12, marginBottom: 6 }}>
+              {MODEL_STATE[algo]} 建议 · t={result.t}s
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <div className="metric-chip">
+                <div className="dim">移动</div>
+                <div>
+                  {result.goal_dx.toFixed(1)}m, {result.goal_dy.toFixed(1)}m
+                  （{Math.hypot(result.goal_dx, result.goal_dy).toFixed(1)}m）
+                </div>
+              </div>
+              <div className="metric-chip">
+                <div className="dim">目标</div>
+                <div>{result.target_label} {Math.round(result.target_conf * 100)}%</div>
+              </div>
+              <div className="metric-chip">
+                <div className="dim">开火</div>
+                <div>{result.fire ? '允许' : '不建议'}</div>
+              </div>
+              {result.agree.score !== undefined && (
+                <div className="metric-chip">
+                  <div className="dim">人机分歧</div>
+                  <div style={{ color: Number(result.agree.score) > 1 ? 'var(--warn)' : 'inherit' }}>
+                    {String(result.agree.score)}
+                  </div>
+                </div>
+              )}
+            </div>
+            {result.human && (result.human as { alive?: boolean }).alive !== false && (
+              <div className="sample-line" style={{ marginTop: 6 }}>
+                真人实际：移动 {Number((result.human as { goal_dx?: number }).goal_dx ?? 0).toFixed(1)}m,
+                {Number((result.human as { goal_dy?: number }).goal_dy ?? 0).toFixed(1)}m · 开火
+                {(result.human as { fire?: boolean }).fire ? '是' : '否'}
+              </div>
+            )}
+          </div>
+        )}
+        {!result && !err && <div className="empty">选择模型后分析当前局面</div>}
+
+        {dis && (
+          <div>
+            <div className="dim" style={{ fontSize: 12, marginBottom: 4 }}>
+              人机分歧 Top {dis.items.length}（{dis.note}）
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {dis.items.length === 0 && <div className="empty">未发现显著分歧局面</div>}
+              {dis.items.map((d, i) => (
+                <button key={i} onClick={() => jumpTo(d.t)}
+                  style={{ display: 'flex', justifyContent: 'space-between',
+                    background: 'var(--panel-alt)', border: '1px solid var(--border)',
+                    borderRadius: 4, padding: '6px 8px', cursor: 'pointer',
+                    color: 'inherit', fontFamily: 'inherit', fontSize: 12,
+                    textAlign: 'left', gap: 8 }}>
+                  <span>#{i + 1} · {d.camp}方 {d.rtype} · t={Math.round(d.t)}s</span>
+                  <span style={{ color: d.score > 1.5 ? 'var(--warn)' : 'var(--ai)' }}>
+                    分歧 {d.score}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     </div>

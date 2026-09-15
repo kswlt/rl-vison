@@ -323,6 +323,22 @@ class InferenceOut(BaseModel):
     agree: Dict[str, Any] = Field(default_factory=dict)
 
 
+class DisagreementItem(BaseModel):
+    game_id: int
+    t: float
+    score: float
+    rtype: str
+    camp: str
+    ai: Dict[str, Any] = Field(default_factory=dict)
+    human: Dict[str, Any] = Field(default_factory=dict)
+
+
+class DisagreementOut(BaseModel):
+    model: str
+    items: List[DisagreementItem] = Field(default_factory=list)
+    note: str = ""
+
+
 class DisagreementOut(BaseModel):
     game_id: int
     t: float

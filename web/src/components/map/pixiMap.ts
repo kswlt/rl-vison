@@ -72,6 +72,8 @@ export class TacticalField {
   private heat: Heatmap | null = null
   private flow: Flow | null = null
   private matchup: Matchup | null = null
+  private ai: { egoX: number; egoY: number; gx: number; gy: number;
+    label: string } | null = null
   private overlayLabel: Text | null = null
   private targetTime = 0
   private displayTime = 0
@@ -173,13 +175,21 @@ export class TacticalField {
     this.applyLayers()
   }
 
+  /** AI recommendation overlay (cyan arrow from ego to suggested goal). */
+  setAI(ai: { egoX: number; egoY: number; gx: number; gy: number;
+    label: string } | null): void {
+    this.ai = ai
+    this.applyLayers()
+  }
+
   private applyLayers(): void {
     this.robotLayer.visible = this.flags.robots
     this.trailLayer.visible = this.flags.trail10 || this.flags.trailFull
     const wantHeat = (this.flags.heatmap || this.flags.condHeat) && !!this.heat
     const wantFlow = this.flags.flow && !!this.flow
     const wantMatchup = this.flags.routes && !!this.matchup
-    this.overlay.visible = wantHeat || wantFlow || wantMatchup ||
+    const wantAI = this.flags.rl && !!this.ai
+    this.overlay.visible = wantHeat || wantFlow || wantMatchup || wantAI ||
       this.flags.fire || this.flags.hit || this.flags.engage
     if (!this.overlay.visible) {
       this.overlay.removeChildren()
@@ -263,6 +273,23 @@ export class TacticalField {
         text: `对阵分析 ${m.team_a} (蓝) vs ${m.team_b} (红) · 共同比赛 ${m.n_matches} 场 · ` +
           `首次交火 n=${m.first_contact.n} · ${m.note}`,
         style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
+      })
+    } else if (this.flags.rl && this.ai) {
+      const a = this.ai
+      const sx = this.sx(a.egoX)
+      const sy = this.sy(a.egoY)
+      const tx = this.sx(Math.max(0, Math.min(28, a.egoX + a.gx)))
+      const ty = this.sy(Math.max(0, Math.min(15, a.egoY + a.gy)))
+      const ang = Math.atan2(ty - sy, tx - sx)
+      g.setStrokeStyle({ width: 2.5, color: 0x3fc9c9, alpha: 0.95 })
+      g.moveTo(sx, sy).lineTo(tx, ty)
+      const hx = Math.cos(ang + Math.PI * 0.86) * 5
+      const hy = Math.sin(ang + Math.PI * 0.86) * 5
+      g.moveTo(tx, ty).lineTo(tx + hx, ty + hy)
+      g.circle(sx, sy, 5).stroke({ color: 0x3fc9c9, alpha: 0.9 })
+      this.overlayLabel = new Text({
+        text: `RL 建议：${a.label}（青色箭头 = 建议移动方向/距离）`,
+        style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x3fc9c9 },
       })
     } else {
       // fire / hit / engage / routes layers: honest placeholder until wired

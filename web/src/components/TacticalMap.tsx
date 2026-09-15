@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import { useConditions, useSelection, useTimeline, useLayers, LAYER_DEFS, useMatchup } from '../state/store'
+import { useAI, useConditions, useSelection, useTimeline, useLayers, LAYER_DEFS, useMatchup } from '../state/store'
 import type { EventItem, Flow, Heatmap, MatchStates, Matchup } from '../types'
 import { TacticalField } from './map/pixiMap'
 import { theme } from '../theme'
@@ -17,6 +17,14 @@ export default function TacticalMap() {
   const toggleLayer = useLayers((s) => s.toggleLayer)
   const conditions = useConditions((s) => s.conditions)
   const matchupSel = useMatchup()
+  const aiState = useAI()
+
+  // RL recommendation overlay
+  useEffect(() => {
+    const field = fieldRef.current
+    if (!field || !ready) return
+    field.setAI(aiState.ai)
+  }, [ready, aiState.ai])
 
   // load matchup overlay when activated (routes layer shows it)
   useEffect(() => {
