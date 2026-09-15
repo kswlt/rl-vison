@@ -25,6 +25,9 @@ export default function VideoPanel({ gameId }: Props) {
   const [seekToken, setSeekToken] = useState(0)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [newBvid, setNewBvid] = useState('')
+  const [newTitle, setNewTitle] = useState('')
+  const [adding, setAdding] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -81,7 +84,45 @@ export default function VideoPanel({ gameId }: Props) {
   }
 
   if (!videos || videos.length === 0) {
-    return null
+    return (
+      <div className="video-panel-wrap">
+        <div className="panel" style={{ padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <span className="dim" style={{ fontSize: 11 }}>关联B站录像</span>
+          <input
+            type="text" value={newBvid}
+            onChange={(e) => setNewBvid(e.target.value)}
+            placeholder="BV号，如 BV18Tup6uEg5"
+            style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+              color: 'var(--text)', borderRadius: 3, padding: '4px 8px', fontSize: 12 }}
+          />
+          <input
+            type="text" value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="标题（可选）"
+            style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)',
+              color: 'var(--text)', borderRadius: 3, padding: '4px 8px', fontSize: 12 }}
+          />
+          <button className="btn" style={{ fontSize: 12, padding: '5px 10px' }}
+            disabled={adding || !newBvid.trim()}
+            onClick={async () => {
+              setAdding(true); setMsg('')
+              try {
+                await api.addVideo({ game_id: gameId, platform: 'bilibili',
+                  bvid: newBvid.trim(), url: `https://www.bilibili.com/video/${newBvid.trim()}/`,
+                  title: newTitle.trim() || newBvid.trim() })
+                setMsg('已关联，请点"设为比赛开始"校准时间')
+                setNewBvid(''); setNewTitle('')
+                const vs = await api.videos(gameId)
+                setVideos(vs); setActiveId(vs[0]?.id ?? null)
+              } catch (e) { setMsg(`关联失败：${String(e)}`) }
+              finally { setAdding(false) }
+            }}>
+            {adding ? '关联中…' : '关联此视频'}
+          </button>
+          {msg && <div className="dim" style={{ fontSize: 10, color: 'var(--ai)' }}>{msg}</div>}
+        </div>
+      </div>
+    )
   }
 
   return (
