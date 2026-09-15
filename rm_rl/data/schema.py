@@ -44,9 +44,13 @@ TS_COLS = {
 MATCH_COLS = {
     "game_id": "game_id",
     "赛区": "region",
+    "场次号": "match_no",
+    "局号": "round_no",
+    "赛程": "round_label",
     "胜方": "winner",           # '红' or '蓝'
     "红方学校": "red_school",
     "蓝方学校": "blue_school",
+    "开始时间": "started_at",
     "时长秒": "duration",
 }
 
