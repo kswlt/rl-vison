@@ -257,6 +257,17 @@ function AiTab() {
     bc: 'BC', iql: 'IQL', dt: 'Decision Transformer',
   }
 
+  // Auto-run inference every second as the timeline plays
+  const lastAutoT = useRef(-1)
+  useEffect(() => {
+    if (!gameId) return
+    const tSec = Math.floor(time)
+    if (tSec === lastAutoT.current) return
+    lastAutoT.current = tSec
+    runNow()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [time, gameId, algo, rt])
+
   const runNow = () => {
     if (!gameId) { setErr('请先选择一场比赛'); return }
     setErr(''); setLoading(true)
