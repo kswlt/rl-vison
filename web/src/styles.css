@@ -483,7 +483,7 @@ select:focus, input:focus { border-color: var(--ai); }
 }
 .tab:hover { color: var(--text); }
 .tab.active { color: var(--ai); border-bottom-color: var(--ai); }
-.tab-body { padding: 10px 16px; overflow-y: auto; }
+.tab-body { padding: 10px 16px; overflow-y: auto; max-height: 280px; flex-shrink: 0; }
 
 /* ---------- misc ---------- */
 .empty {
