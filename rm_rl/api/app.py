@@ -13,9 +13,9 @@ import argparse
 import os
 import sys
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from ..tactical.analytics import TacticalStore
@@ -85,6 +85,34 @@ def create_app(db_path: str = DEFAULT_DB, meta_path: str = DEFAULT_META,
     def health():
         return dict(status="ok", db=os.path.basename(db_path),
                     matches=int(len(state.store.matches())))
+
+    @app.get("/api/field/background.jpeg")
+    def field_background():
+        """Serves the DJI rulebook arena top-view cropped to the tracked field,
+        desaturated and darkened so plotted data stays readable. 404 when the
+        user has not placed the file (see viz/assets/README.md); the web client
+        then falls back to the procedural grid."""
+        import io
+        try:
+            from viz.field_canvas import load_cropped
+            import numpy as np
+            img = load_cropped()
+            if img is None:
+                raise RuntimeError("missing")
+            a = np.asarray(img, dtype=np.float32) / 255.0
+            # desaturate 0.55 and darken 0.55 so robots/trajectories pop
+            grey = a @ np.array([.299, .587, .114], np.float32)
+            a = a * 0.45 + grey[..., None] * 0.55
+            a = (np.clip(a, 0, 1) * 255).astype(np.uint8)
+            from PIL import Image
+            out = Image.fromarray(a)
+            buf = io.BytesIO()
+            out.save(buf, format="JPEG", quality=82)
+            buf.seek(0)
+            return Response(buf.getvalue(), media_type="image/jpeg",
+                            headers={"Cache-Control": "public, max-age=86400"})
+        except Exception:
+            raise HTTPException(status_code=404, detail="arena background image not available")
 
     # serve the production React build if present
     if os.path.isdir(WEB_DIST):

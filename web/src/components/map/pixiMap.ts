@@ -8,7 +8,7 @@
  * - Event animations (hit pulse, death flash) are driven from the events API.
  */
 import {
-  Application, Container, Graphics, Text,
+  Application, Assets, Container, Graphics, Sprite, Text,
 } from 'pixi.js'
 import type { EventItem, Flow, Heatmap, MatchState, Matchup, RobotState } from '../../types'
 
@@ -75,6 +75,7 @@ export class TacticalField {
   private ai: { egoX: number; egoY: number; gx: number; gy: number;
     label: string } | null = null
   private overlayLabel: Text | null = null
+  private fieldBg: Sprite | null = null
   private targetTime = 0
   private displayTime = 0
   private scale = 20
@@ -126,6 +127,23 @@ export class TacticalField {
     this.drawField()
     this.layout()
     this.tick()
+    // Arena top-view backdrop (DJI rulebook image, served pre-cropped + desaturated
+    // by the backend). Falls back to the procedural grid when 404 / missing.
+    void Assets.load('/api/field/background.jpeg')
+      .then((tex) => {
+        this.fieldBg = new Sprite(tex)
+        this.fieldBg.alpha = 0.95
+        this.positionFieldBg()
+        this.world.addChildAt(this.fieldBg, 0)
+      })
+      .catch(() => { this.fieldBg = null })
+  }
+
+  private positionFieldBg(): void {
+    if (!this.fieldBg) return
+    this.fieldBg.position.set(this.ox, this.oy)
+    this.fieldBg.width = FIELD_X * this.scale
+    this.fieldBg.height = FIELD_Y * this.scale
   }
 
   /** Load the full per-second state series for a match (replaces old). */
@@ -332,8 +350,13 @@ export class TacticalField {
     const g = new Graphics()
     const w = FIELD_X * this.scale
     const h = FIELD_Y * this.scale
+    // arena top-view backdrop (kept at the bottom of the world layer)
+    if (this.fieldBg) {
+      this.positionFieldBg()
+      this.world.addChild(this.fieldBg)
+    }
     // base fill + half-court tints
-    g.rect(this.ox, this.oy, w, h).fill({ color: 0x131a22 })
+    g.rect(this.ox, this.oy, w, h).fill({ color: 0x131a22, alpha: this.fieldBg ? 0.55 : 1 })
     g.rect(this.ox, this.oy, w / 2, h).fill({ color: 0xff5b3d, alpha: 0.05 })
     g.rect(this.ox + w / 2, this.oy, w / 2, h).fill({ color: 0x4d9dff, alpha: 0.05 })
     // grid
