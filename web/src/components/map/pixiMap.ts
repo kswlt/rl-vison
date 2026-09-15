@@ -235,7 +235,7 @@ export class TacticalField {
         // arrow head
         const hx = Math.cos(ang + Math.PI * 0.85) * 3
         const hy = Math.sin(ang + Math.PI * 0.85) * 3
-        g.moveTo(ex, ey).lineTo(ex + hx, ey + hy)
+        g.moveTo(ex, ey).lineTo(ex + hx, ey + hy).stroke()
       }
       this.overlayLabel = new Text({
         text: `运动流场 ${f.phase || '全场'} · ${f.rtype || '全部兵种'} · n=${f.n} · ${f.n_matches}场`,
@@ -285,7 +285,7 @@ export class TacticalField {
       g.moveTo(sx, sy).lineTo(tx, ty)
       const hx = Math.cos(ang + Math.PI * 0.86) * 5
       const hy = Math.sin(ang + Math.PI * 0.86) * 5
-      g.moveTo(tx, ty).lineTo(tx + hx, ty + hy)
+      g.moveTo(tx, ty).lineTo(tx + hx, ty + hy).stroke()
       g.circle(sx, sy, 5).stroke({ color: 0x3fc9c9, alpha: 0.9 })
       this.overlayLabel = new Text({
         text: `RL 建议：${a.label}（青色箭头 = 建议移动方向/距离）`,
@@ -344,14 +344,16 @@ export class TacticalField {
     for (let j = 1; j < FIELD_Y; j++) {
       g.moveTo(this.ox, this.sy(j)).lineTo(this.ox + w, this.sy(j))
     }
+    g.stroke()
     // centre line
     g.setStrokeStyle({ width: 2, color: GRID, alpha: 0.9 })
     g.moveTo(this.ox + w / 2, this.oy).lineTo(this.ox + w / 2, this.oy + h)
+    g.stroke()
     // base zones
     g.setStrokeStyle({ width: 1, color: RED, alpha: 0.5 })
-    g.rect(this.ox + 4, this.oy + 4, w * 0.12, h * 0.3)
+    g.rect(this.ox + 4, this.oy + 4, w * 0.12, h * 0.3).stroke()
     g.setStrokeStyle({ width: 1, color: BLUE, alpha: 0.5 })
-    g.rect(this.ox + w * 0.88 - 4, this.oy + h * 0.7 - 4, w * 0.12, h * 0.3)
+    g.rect(this.ox + w * 0.88 - 4, this.oy + h * 0.7 - 4, w * 0.12, h * 0.3).stroke()
     this.world.addChild(g)
   }
 
@@ -410,7 +412,8 @@ export class TacticalField {
       // trails (recent 10 s by default, full match when requested)
       this.trailLayer.removeChildren()
       if (this.flags.trail10 || this.flags.trailFull) {
-        const trailG = new Graphics()
+        const trailR = new Graphics()
+        const trailB = new Graphics()
         const lookback = this.flags.trailFull ? Math.min(120, idx) : 10
         const seen = new Set<number>()
         for (let k = Math.max(0, idx - lookback); k <= idx; k++) {
@@ -420,21 +423,23 @@ export class TacticalField {
             if (!r.known || !r.alive) continue
             if (seen.has(r.robot_id)) continue
             seen.add(r.robot_id)
-            const color = r.camp === '红' ? RED : BLUE
-            trailG.setStrokeStyle({ width: 1.2, color, alpha: 0.35 })
-            trailG.moveTo(this.sx(r.x), this.sy(r.y))
+            const g = r.camp === '红' ? trailR : trailB
+            g.moveTo(this.sx(r.x), this.sy(r.y))
             for (let k2 = k - 1; k2 >= Math.max(0, idx - lookback); k2--) {
               const f2 = this.frameAt(k2)
               if (!f2) continue
               const r2 = f2.robots.find((q) => q.robot_id === r.robot_id)
               if (r2 && r2.known) {
-                trailG.lineTo(this.sx(r2.x), this.sy(r2.y))
+                g.lineTo(this.sx(r2.x), this.sy(r2.y))
                 break
               }
             }
           }
         }
-        this.trailLayer.addChild(trailG)
+        trailR.setStrokeStyle({ width: 1.2, color: RED, alpha: 0.35 }).stroke()
+        trailB.setStrokeStyle({ width: 1.2, color: BLUE, alpha: 0.35 }).stroke()
+        this.trailLayer.addChild(trailR)
+        this.trailLayer.addChild(trailB)
       }
 
       // robots (interpolated display state)
@@ -469,7 +474,7 @@ export class TacticalField {
             if (ra.yaw_ok) {
               const ang = (yaw * Math.PI) / 180
               v.dir.setStrokeStyle({ width: 2, color: v.camp === '红' ? RED : BLUE, alpha: 0.9 })
-              v.dir.moveTo(0, 0).lineTo(Math.cos(ang) * rOut * 1.5, Math.sin(ang) * rOut * 1.5)
+              v.dir.moveTo(0, 0).lineTo(Math.cos(ang) * rOut * 1.5, Math.sin(ang) * rOut * 1.5).stroke()
             }
           }
           // hp ring
