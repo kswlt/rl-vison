@@ -151,6 +151,16 @@ select:focus, input:focus { border-color: var(--ai); }
   overflow: hidden;
   box-shadow: 0 8px 24px #000a;
 }
+.video-dragbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  cursor: move;
+  user-select: none;
+}
+.video-dragbar:hover { background: var(--panel); }
 .video-close {
   position: absolute;
   top: 2px;
