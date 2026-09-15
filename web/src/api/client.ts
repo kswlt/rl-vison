@@ -5,7 +5,7 @@
  */
 import type {
   EventBehavior, EventItem, Flow, Formation, Heatmap, Match, MatchState,
-  MatchTimeline, Team, TeamMatch, TeamProfile, Video, VideoAnchor,
+  MatchStates, MatchTimeline, Team, TeamMatch, TeamProfile, Video, VideoAnchor,
   TacticalConditions,
 } from '../types'
 
@@ -61,6 +61,7 @@ export const api = {
   match: (id: number) => get<Match>(`/matches/${id}`),
   timeline: (id: number) => get<MatchTimeline>(`/matches/${id}/timeline`),
   state: (id: number, t: number) => get<MatchState>(`/matches/${id}/state`, { t }),
+  states: (id: number, step = 1) => get<MatchStates>(`/matches/${id}/states`, { step }),
   events: (id: number, etype?: string, limit?: number) =>
     get<EventItem[]>(`/matches/${id}/events`, { etype, limit }),
 

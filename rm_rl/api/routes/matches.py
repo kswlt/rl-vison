@@ -7,8 +7,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from ...tactical.conditions import build_seconds
 from ...tactical.schemas import (EventOut, MatchOut, MatchStateOut,
-                                 MatchTimelineOut, RobotStateOut,
-                                 TimelinePoint)
+                                 MatchStatesOut, MatchTimelineOut,
+                                 RobotStateOut, TimelinePoint)
 from ...tactical.team_identity import normalize
 from .deps import get_state
 
@@ -99,6 +99,32 @@ def match_state(game_id: int, t: float = Query(1.0, ge=0),
         raise HTTPException(404, f"game_id {game_id} has no timeseries")
     idx = int(round(t))
     idx = max(1, min(game.T, idx))
+    robots, buildings = _robot_states(game, idx)
+    return MatchStateOut(game_id=game_id, t=float(idx), duration=int(game.T),
+                         robots=robots, buildings=buildings)
+
+
+@router.get("/matches/{game_id}/states", response_model=MatchStatesOut)
+def match_states(game_id: int,
+                 step: int = Query(1, ge=1, le=10,
+                                   description="downsample every N seconds"),
+                 state=Depends(get_state)):
+    """Full per-second state series for the frontend's local animation loop."""
+    game = state.store.game(game_id)
+    if game.T == 0:
+        raise HTTPException(404, f"game_id {game_id} has no timeseries")
+    states = []
+    for idx in range(1, game.T + 1, step):
+        robots, buildings = _robot_states(game, idx)
+        states.append(MatchStateOut(game_id=game_id, t=float(idx),
+                                    duration=int(game.T),
+                                    robots=robots, buildings=buildings))
+    return MatchStatesOut(game_id=game_id, duration=int(game.T), step=step,
+                          states=states)
+
+
+def _robot_states(game, idx: int):
+    """Compact per-second robot/building states for one second index."""
     robots, buildings = [], []
     for rid, e in game.ent.items():
         hp = float(e.hp[idx - 1])
@@ -119,8 +145,7 @@ def match_state(game_id: int, t: float = Query(1.0, ge=0),
         (buildings if is_build else robots).append(item)
     robots.sort(key=lambda r: r.robot_id)
     buildings.sort(key=lambda r: r.robot_id)
-    return MatchStateOut(game_id=game_id, t=float(idx), duration=int(game.T),
-                         robots=robots, buildings=buildings)
+    return robots, buildings
 
 
 def _rtype(rid: int) -> str:

@@ -7,14 +7,16 @@
 
 ## 最近一次验证结果
 
-- **M2（Frontend 框架）验证（2026-09-15）**：
-  - `cd web && npm run build` → **通过**（tsc -b 无错误；Vite 产出 dist，gzip 约 400 kB）。
-  - 生产模式端到端：FastAPI 托管 `web/dist`，浏览器打开 `http://127.0.0.1:8000` → 深色三栏
-    布局、Layers 面板、时间轴、底部 tabs 全部渲染；`/api/teams` 98 队；选择「广东工业大学」
-    → 历史比赛 20 场即时加载、对手画像进入计算（首算约 32 s，M4 缓存优化）、战术地图渲染
-    红蓝点位与 HP 环。
-- **M1（Backend 基础）验证**：`pytest tests` → **15 passed**；真实库冒烟全通过
-  （health 613 场 / teams / profile / match / state / events / timeline）。
+- **M3（动态战术地图）验证（2026-09-15）**：
+  - 新增 `/api/matches/{id}/states` 批量逐秒状态端点：419 s 全量（step=1）首算 390 ms。
+  - 浏览器端到端：选择「广东工业大学」→ 自动加载第一场比赛整场逐秒状态；点击播放后
+    全局时间轴 00:00→00:11 前进，PixiJS 地图连续渲染（raw 1 Hz 与 interpolated 显示并存标注），
+    相邻截图地图区域像素差 >0 证实机器人位置随播放移动；红蓝双方机器人、HP 环、朝向、阵亡
+    灰化、最近 10 s 轨迹、事件 pulse 全部在画布上；控制台 0 错误。
+  - 窄屏降级：< 1180 px 时隐藏左右面板、地图占满视口（已验证 602 px 视口下地图可正常播放）。
+- **M2（Frontend 框架）验证**：`npm run build` 通过；生产模式 FastAPI 托管 dist；
+  `/api/teams` 98 队；选择队伍后历史比赛 20 场即时加载；对手画像计算完成并渲染雷达摘要 + 指标表。
+- **M1（Backend 基础）验证**：`pytest tests` → **15 passed**；真实库冒烟全通过。
 - **M0 验证**：仓库审计完成，架构文档落地。
 
 ---
@@ -27,27 +29,27 @@
     （条件占位热力图）、flow、formations、events、meta（视频偏移 + 多锚点分段对齐）、opponent。
   - `rm_rl/api/`：FastAPI 应用工厂（CORS、健康检查、静态托管 web/dist）+ 全部路由。
   - `tests/`：合成数据库 fixture，15 个后端测试全绿。
-- [x] **M2 Frontend 框架**
-  - `web/`：Vite + React 18 + TypeScript + Zustand + ECharts + PixiJS（依赖就绪，PixiJS M3 启用）。
-  - 深色视觉系统 `src/theme.ts` + `src/styles.css`（F1 telemetry × 军事态势图风格；
-    红 `#ff5b3d` / 蓝 `#4d9dff` / AI 青 `#3fc9c9` / 危险橙 `#ff8f4d`；统一 transition 200–350 ms）。
-  - 全局状态 `src/state/store.ts`：`useTimeline`（global tactical time / 播放 / 倍速 0.5–4x）、
-    `useSelection`（队伍/比赛）、`useConditions`（阶段/结构/人数筛选）、`useLayers`（13 个图层开关）。
-  - API client `src/api/client.ts`：typed fetch 封装，覆盖 teams/matches/state/timeline/heatmap/
-    flow/formation/event-response/videos（含锚点与双向时间映射）。
-  - 组件：Header、FilterBar（对手/比赛/兵种/阶段/结构/人数）、Timeline（播放/暂停/±10s/0.5–4x/
-    拖动/事件标记轨道）、OpponentPanel（雷达摘要 + 9 指标对比表 + 历史比赛列表）、
-    TacticalMap（SVG 场地图初版：28×15 m、红蓝阵营、HP 环、朝向、建筑区、Layers 面板、raw t 标注）、
-    ConclusionsPanel（事件→行为概率条，带 n/n_matches）、TabsPanel（条件统计/阵型/对手比较/
-    AI分析/历史证据五 tab，阵型 ECharts 时序初版）、RadarChart。
-  - 构建：`web/dist` 已生成并被 FastAPI 生产模式托管；`web/node_modules` gitignore。
+- [x] **M2 Frontend 框架** — Vite + React 18 + TS + Zustand + ECharts；深色视觉系统
+  （theme.ts / styles.css，F1 telemetry × 军事态势图）；全局状态（useTimeline 全局战术时间、
+  useSelection、useConditions、useLayers 13 图层）；typed API client；Header / FilterBar /
+  Timeline（播放/暂停/±10s/0.5–4x/拖动/事件标记）/ OpponentPanel（雷达摘要 + 指标表 + 比赛列表）/
+  ConclusionsPanel（事件响应概率条）/ TabsPanel（五 tab，阵型 ECharts 时序）；`web/dist` 提交，
+  FastAPI 生产托管。
+- [x] **M3 动态战术地图**
+  - 后端：`GET /api/matches/{id}/states?step=` 批量逐秒状态（整场 419 s 首算 390 ms）。
+  - 前端 `web/src/components/map/pixiMap.ts`：PixiJS 渲染器——场地网格/半场着色/基地警戒区；
+    机器人平滑插值（1 Hz 数据 → 60 FPS 显示，明确区分 raw second 与 interpolated frame）；
+    红蓝 HP 环、朝向线、阵亡灰化、丢失跟踪淡化；最近 10 s 轨迹（默认）与完整轨迹（上限 120 s）；
+    受击 pulse / 阵亡 flash 事件动画；图层开关实时映射到 Pixi 容器。
+  - `TacticalMap.tsx` 重写：整场 states + events 预加载、全局战术时间驱动、13 图层面板保留。
+  - 窄屏降级：< 1180 px 隐藏左右栏、地图占满（保持"场地是视觉中心"）。
 
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M3 动态战术地图**（PixiJS 平滑插值渲染、最近 N 秒轨迹、HP、事件动画、时间轴同步）。
+- 下一步：**M4 多维空间分析**（条件热力图/流场/交火图层接入地图 overlay + 预计算缓存）。
 
 ## 如何运行（随里程碑更新）
 
@@ -87,9 +89,8 @@ cd web && npm run build                 # 前端构建验证
 
 ## 下一阶段
 
-- M3：PixiJS 动态战术地图（机器人/平滑插值/轨迹/HP/事件动画/时间轴同步）。
 - M4：heatmap / conditional heatmap / flow field / engagement / layer manager + 预计算缓存。
-- M5：阵型分析时间序列图（后端已有，前端补全）。
+- M5：阵型分析时间序列图（后端已有，前端补全 + 地图实时阵型多边形）。
 - M6：Opponent Intelligence 页面（画像、联盟对比、事件响应、状态转移、matchup）。
 - M7：Bilibili 集成（iframe、锚点标定 UI、证据片段）。
 - M8：RL 推理集成（IQL/BC/DT、policy overlay、人机分歧）。
@@ -100,4 +101,5 @@ cd web && npm run build                 # 前端构建验证
 - 远程：`git@github.com:kswlt/rl-vison.git`（origin/main 跟踪）。
 - M0 提交：`6d5ad83` docs: tactical dashboard architecture baseline。
 - M1 提交：`09a8e6c` feat(api): add FastAPI backend with team/match/timeline/analytics/video endpoints and tests。
-- M2 提交：见下一条（本阶段提交后更新 SHA）。
+- M2 提交：`6a15e52` + `5ecfd99` feat(web): initialize React/TS tactical dashboard。
+- M3 提交：见下一条（本阶段提交后更新 SHA）。

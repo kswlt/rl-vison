@@ -81,6 +81,13 @@ export interface MatchState {
   buildings: RobotState[]
 }
 
+export interface MatchStates {
+  game_id: number
+  duration: number
+  step: number
+  states: MatchState[]
+}
+
 export interface TimelinePoint {
   t: number
   events: string[]

@@ -112,6 +112,16 @@ class MatchStateOut(BaseModel):
     buildings: List[RobotStateOut] = Field(default_factory=list)
 
 
+class MatchStatesOut(BaseModel):
+    """Full per-second state series for one match, compact enough for the
+    frontend to preload and animate locally (1 Hz raw data, interpolated
+    in the browser)."""
+    game_id: int
+    duration: int
+    step: int = 1
+    states: List[MatchStateOut] = Field(default_factory=list)
+
+
 class TimelinePoint(BaseModel):
     t: float
     events: List[str] = Field(default_factory=list)

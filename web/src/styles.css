@@ -338,6 +338,14 @@ select:focus, input:focus { border-color: var(--ai); }
 .dim { color: var(--text-dim); }
 .sample-line { font-size: 11px; color: var(--text-faint); margin-top: 4px; }
 
+/* ---------- narrow-screen degradation: the map stays the visual centre ---- */
+@media (max-width: 1180px) {
+  .main { grid-template-columns: 1fr; }
+  .main > .panel:first-child,
+  .main > .panel:last-child { display: none; }
+  .app { min-width: 0; }
+}
+
 .chip {
   display: inline-block;
   padding: 2px 8px;
