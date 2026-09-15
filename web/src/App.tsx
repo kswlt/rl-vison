@@ -27,7 +27,7 @@ export default function App() {
       <Header />
       <FilterBar />
 
-      {/* view switch: replay = map + video; analytics = full analysis panels */}
+      {/* view switch: replay = map + video split; analytics = full analysis */}
       <div className="view-switch">
         <button
           className={`view-btn ${view === 'replay' ? 'active' : ''}`}
@@ -43,35 +43,54 @@ export default function App() {
         </button>
       </div>
 
-      {/* map is the visual centre, fills all space */}
-      <div className="map-full">
-        <TacticalMap />
-        {gameId && <VideoPanel gameId={gameId} />}
-
-        {/* left drawer toggle */}
-        <button
-          className="drawer-toggle left"
-          onClick={() => setLeftOpen(v => !v)}
-          title="对手画像"
-        >
-          {leftOpen ? '◂' : '▸'}
-        </button>
-        <div className={`drawer left-drawer ${leftOpen ? 'open' : ''}`}>
-          <OpponentPanel />
+      {/* replay view: map left, video right; analytics view: map full */}
+      {view === 'replay' ? (
+        <div className="replay-split">
+          <div className="map-full">
+            <TacticalMap />
+            <button
+              className="drawer-toggle left"
+              onClick={() => setLeftOpen(v => !v)}
+              title="对手画像"
+            >
+              {leftOpen ? '◂' : '▸'}
+            </button>
+            <div className={`drawer left-drawer ${leftOpen ? 'open' : ''}`}>
+              <OpponentPanel />
+            </div>
+          </div>
+          <div className="video-pane">
+            {gameId ? <VideoPanel gameId={gameId} /> : (
+              <div className="video-empty">选择比赛后在此显示B站录像</div>
+            )}
+          </div>
         </div>
-
-        {/* right drawer toggle */}
-        <button
-          className="drawer-toggle right"
-          onClick={() => setRightOpen(v => !v)}
-          title="战术结论"
-        >
-          {rightOpen ? '▸' : '◂'}
-        </button>
-        <div className={`drawer right-drawer ${rightOpen ? 'open' : ''}`}>
-          <ConclusionsPanel />
+      ) : (
+        <div className="map-full">
+          <TacticalMap />
+          {gameId && <VideoPanel gameId={gameId} />}
+          <button
+            className="drawer-toggle left"
+            onClick={() => setLeftOpen(v => !v)}
+            title="对手画像"
+          >
+            {leftOpen ? '◂' : '▸'}
+          </button>
+          <div className={`drawer left-drawer ${leftOpen ? 'open' : ''}`}>
+            <OpponentPanel />
+          </div>
+          <button
+            className="drawer-toggle right"
+            onClick={() => setRightOpen(v => !v)}
+            title="战术结论"
+          >
+            {rightOpen ? '▸' : '◂'}
+          </button>
+          <div className={`drawer right-drawer ${rightOpen ? 'open' : ''}`}>
+            <ConclusionsPanel />
+          </div>
         </div>
-      </div>
+      )}
 
       <Timeline />
       {view === 'analytics' && <TabsPanel />}
