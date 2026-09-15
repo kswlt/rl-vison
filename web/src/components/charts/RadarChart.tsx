@@ -23,8 +23,9 @@ export default function RadarChart({ metrics, height = 220 }: Props) {
       backgroundColor: 'transparent',
       tooltip: { trigger: 'item' },
       radar: {
-        indicator: keys.map((_k, i) => ({ name: metrics[i].label.slice(0, 8), max: 1 })),
-        radius: '62%',
+        indicator: keys.map((k, i) => ({ name: _SHORT[k] || metrics[i].label.slice(0, 4), max: 1 })),
+        radius: '58%',
+        center: ['50%', '54%'],
         axisName: { color: theme.textDim, fontSize: 10 },
         splitLine: { lineStyle: { color: theme.borderStrong } },
         splitArea: { areaStyle: { color: ['transparent', '#ffffff08'] } },
@@ -51,6 +52,18 @@ export default function RadarChart({ metrics, height = 220 }: Props) {
   }, [metrics])
 
   return <div ref={ref} style={{ height, width: '100%' }} />
+}
+
+const _SHORT: Record<string, string> = {
+  aggression: '攻击性',
+  front_occupancy: '前场',
+  fallback_speed: '回防',
+  formation_stab: '阵型稳',
+  flank_usage: '侧翼',
+  fixed_position: '固定位',
+  engage_rate: '交战',
+  outpost_protect: '前哨',
+  late_game_tuck: '残局',
 }
 
 function _norm(v: number, m: TeamProfileMetric): number {

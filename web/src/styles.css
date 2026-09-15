@@ -116,7 +116,7 @@ select:focus, input:focus { border-color: var(--ai); }
 /* ---------- main three-column layout ---------- */
 .main {
   display: grid;
-  grid-template-columns: 300px 1fr 320px;
+  grid-template-columns: 240px 1fr 280px;
   min-height: 0;
   gap: 1px;
   background: var(--border);
