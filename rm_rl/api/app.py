@@ -19,6 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..tactical.analytics import TacticalStore
+from ..tactical.cache import get_or_compute as _get_or_compute
 from ..tactical.meta import MetaStore
 from ..tactical.team_identity import TeamIdentity, build_team_identity_from_db
 from .routes import analytics, inference, matches, teams, videos
@@ -34,6 +35,7 @@ class AppState:
     """Shared services, attached to ``app.state.state``."""
 
     def __init__(self, db_path: str, meta_path: str, identity_path: str):
+        self.db_path = db_path
         self.store = TacticalStore(db_path)
         self.meta = MetaStore(meta_path)
         fresh = build_team_identity_from_db(db_path)
@@ -48,6 +50,9 @@ class AppState:
             self.identity.save(identity_path)
         except OSError:
             pass
+
+    def cached(self, kind: str, params: dict, compute, ttl_s=None):
+        return _get_or_compute(self.db_path, kind, params, compute, ttl_s=ttl_s)
 
 
 def create_app(db_path: str = DEFAULT_DB, meta_path: str = DEFAULT_META,

@@ -7,15 +7,19 @@
 
 ## 最近一次验证结果
 
-- **M3（动态战术地图）验证（2026-09-15）**：
-  - 新增 `/api/matches/{id}/states` 批量逐秒状态端点：419 s 全量（step=1）首算 390 ms。
-  - 浏览器端到端：选择「广东工业大学」→ 自动加载第一场比赛整场逐秒状态；点击播放后
-    全局时间轴 00:00→00:11 前进，PixiJS 地图连续渲染（raw 1 Hz 与 interpolated 显示并存标注），
-    相邻截图地图区域像素差 >0 证实机器人位置随播放移动；红蓝双方机器人、HP 环、朝向、阵亡
-    灰化、最近 10 s 轨迹、事件 pulse 全部在画布上；控制台 0 错误。
-  - 窄屏降级：< 1180 px 时隐藏左右面板、地图占满视口（已验证 602 px 视口下地图可正常播放）。
-- **M2（Frontend 框架）验证**：`npm run build` 通过；生产模式 FastAPI 托管 dist；
-  `/api/teams` 98 队；选择队伍后历史比赛 20 场即时加载；对手画像计算完成并渲染雷达摘要 + 指标表。
+- **M4（多维空间分析 + 缓存）验证（2026-09-15）**：
+  - 磁盘战术缓存生效：`/api/teams/广东工业大学/profile` 首算 32.2 s → 命中缓存 3 ms；
+    `/api/analytics/heatmap?team=广东工业大学&rtype=步兵3&phase=open30` 首算 170 ms → 缓存 3 ms。
+    缓存键含 DB 签名（matches 行数 + 最大 game_id），换库自动失效。
+  - 浏览器端到端：选择队伍后开启「条件热力图」「运动流场」图层 → Pixi 地图叠加层渲染
+    （单色低饱和热力格 + 流场箭头，地图区域检出青色叠加像素），控制台 0 错误；
+    图层关闭/条件变化会重新请求；fire/hit/engage/routes 图层显示"后续里程碑接入"诚实占位。
+  - `pytest tests` → **15 passed**（缓存层未破坏任何现有契约）。
+- **M3（动态战术地图）验证（2026-09-15）**：states 批量端点 419 s 首算 390 ms；播放时
+  时间轴 00:00→00:11 前进、Pixi 地图连续插值渲染、地图区域像素差 >0；控制台 0 错误；
+  窄屏降级（<1180px 隐藏左右栏、地图占满）。
+- **M2（Frontend 框架）验证**：`npm run build` 通过；FastAPI 生产托管；teams 98 队；
+  画像渲染雷达 + 指标表。
 - **M1（Backend 基础）验证**：`pytest tests` → **15 passed**；真实库冒烟全通过。
 - **M0 验证**：仓库审计完成，架构文档落地。
 
@@ -44,12 +48,20 @@
   - `TacticalMap.tsx` 重写：整场 states + events 预加载、全局战术时间驱动、13 图层面板保留。
   - 窄屏降级：< 1180 px 隐藏左右栏、地图占满（保持"场地是视觉中心"）。
 
+- [x] **M4 多维空间分析 + 缓存**
+  - 后端 `rm_rl/tactical/cache.py`：磁盘 JSON 战术缓存（键 = kind + 条件组合 + DB 签名；
+    换库自动失效），profile / conditional heatmap / flow 全部走缓存；
+    `AppState.cached()` / `State.cached()` 统一入口；`invalidate_all` / `cache_stats` 工具。
+  - 前端 Pixi overlay：`setHeatmap` / `setFlow` 渲染条件热力图（单色低饱和 alpha 渐变、
+    标注 n / n_matches / 样本不足）与运动流场（箭头方向=平均运动、长度=速度、透明度=样本密度）；
+    图层开关与条件筛选实时联动；fire/hit/engage/routes 图层诚实占位（不伪造数据）。
+
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M4 多维空间分析**（条件热力图/流场/交火图层接入地图 overlay + 预计算缓存）。
+- 下一步：**M5 阵型分析**（地图实时阵型多边形 + 时间序列图补全）。
 
 ## 如何运行（随里程碑更新）
 
@@ -102,4 +114,5 @@ cd web && npm run build                 # 前端构建验证
 - M0 提交：`6d5ad83` docs: tactical dashboard architecture baseline。
 - M1 提交：`09a8e6c` feat(api): add FastAPI backend with team/match/timeline/analytics/video endpoints and tests。
 - M2 提交：`6a15e52` + `5ecfd99` feat(web): initialize React/TS tactical dashboard。
-- M3 提交：见下一条（本阶段提交后更新 SHA）。
+- M3 提交：`54529b4` feat(map): add animated PixiJS tactical battlefield…。
+- M4 提交：见下一条（本阶段提交后更新 SHA）。

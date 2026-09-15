@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import { useSelection, useTimeline, useLayers, LAYER_DEFS } from '../state/store'
-import type { EventItem, MatchStates } from '../types'
+import { useConditions, useSelection, useTimeline, useLayers, LAYER_DEFS } from '../state/store'
+import type { EventItem, Flow, Heatmap, MatchStates } from '../types'
 import { TacticalField } from './map/pixiMap'
 import { theme } from '../theme'
 
@@ -15,6 +15,32 @@ export default function TacticalMap() {
   const time = useTimeline((s) => s.time)
   const layers = useLayers((s) => s.layers)
   const toggleLayer = useLayers((s) => s.toggleLayer)
+  const conditions = useConditions((s) => s.conditions)
+
+  // load conditional heatmap / flow overlays when conditions change
+  useEffect(() => {
+    const field = fieldRef.current
+    if (!field || !ready) return
+    let cancelled = false
+
+    const wantHeat = layers.heatmap || layers.condHeat
+    const wantFlow = layers.flow
+    if (wantHeat) {
+      api.heatmap(conditions).then((h: Heatmap) => {
+        if (!cancelled) field.setHeatmap(h)
+      }).catch(() => {})
+    } else {
+      field.setHeatmap(null)
+    }
+    if (wantFlow) {
+      api.flow(conditions).then((f: Flow) => {
+        if (!cancelled) field.setFlow(f)
+      }).catch(() => {})
+    } else {
+      field.setFlow(null)
+    }
+    return () => { cancelled = true }
+  }, [ready, conditions, layers.heatmap, layers.condHeat, layers.flow])
 
   // init pixi once
   useEffect(() => {

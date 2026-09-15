@@ -54,7 +54,13 @@ def get_team(team_id: str, state=Depends(get_state)):
 @router.get("/teams/{team_id}/profile", response_model=TeamProfileOut)
 def team_profile(team_id: str, state=Depends(get_state)):
     team_id = _resolve(state, team_id)
-    return opponent_profile(state, team_id)
+
+    def _compute():
+        out = opponent_profile(state, team_id)
+        return out.model_dump()
+
+    data = state.cached("profile", {"team": team_id}, _compute)
+    return TeamProfileOut(**data)
 
 
 @router.get("/teams/{team_id}/matches", response_model=list[TeamMatchOut])

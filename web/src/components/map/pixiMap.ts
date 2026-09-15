@@ -10,7 +10,7 @@
 import {
   Application, Container, Graphics, Text,
 } from 'pixi.js'
-import type { EventItem, MatchState, RobotState } from '../../types'
+import type { EventItem, Flow, Heatmap, MatchState, RobotState } from '../../types'
 
 export const FIELD_X = 28
 export const FIELD_Y = 15
@@ -68,6 +68,9 @@ export class TacticalField {
   private robots = new Map<number, RobotView>()
   private states: MatchState[] = []
   private events: EventItem[] = []
+  private heat: Heatmap | null = null
+  private flow: Flow | null = null
+  private overlayLabel: Text | null = null
   private targetTime = 0
   private displayTime = 0
   private scale = 20
@@ -148,14 +151,89 @@ export class TacticalField {
     this.applyLayers()
   }
 
+  /** Conditional / occupancy heatmap overlay (null clears it). */
+  setHeatmap(heat: Heatmap | null): void {
+    this.heat = heat
+    this.applyLayers()
+  }
+
+  /** Movement flow-field overlay (null clears it). */
+  setFlow(flow: Flow | null): void {
+    this.flow = flow
+    this.applyLayers()
+  }
+
   private applyLayers(): void {
     this.robotLayer.visible = this.flags.robots
     this.trailLayer.visible = this.flags.trail10 || this.flags.trailFull
-    this.overlay.visible = this.flags.heatmap || this.flags.condHeat ||
-      this.flags.flow || this.flags.fire || this.flags.hit ||
-      this.flags.engage || this.flags.routes
-    if (this.overlay.visible) this.drawOverlayPlaceholder()
-    else this.overlay.removeChildren()
+    const wantHeat = (this.flags.heatmap || this.flags.condHeat) && !!this.heat
+    const wantFlow = this.flags.flow && !!this.flow
+    this.overlay.visible = wantHeat || wantFlow ||
+      this.flags.fire || this.flags.hit || this.flags.engage || this.flags.routes
+    if (!this.overlay.visible) {
+      this.overlay.removeChildren()
+      this.overlayLabel = null
+      return
+    }
+    this.drawOverlay()
+  }
+
+  private drawOverlay(): void {
+    this.overlay.removeChildren()
+    const g = new Graphics()
+
+    if ((this.flags.heatmap || this.flags.condHeat) && this.heat) {
+      // single-hue alpha gradient: low sample -> dim, high sample -> solid
+      const h = this.heat
+      const maxV = Math.max(1, ...h.cells.map((c) => c.count))
+      for (const c of h.cells) {
+        const alpha = 0.05 + 0.7 * Math.min(1, c.count / maxV)
+        g.rect(this.sx(c.x * h.cell_m), this.sy(c.y * h.cell_m),
+          this.scale * h.cell_m, this.scale * h.cell_m)
+          .fill({ color: 0x3fc9c9, alpha })
+      }
+      this.overlayLabel = new Text({
+        text: `条件热力图 ${h.phase || '全场'} · ${h.rtype || '全部兵种'} · n=${h.n} · ${h.n_matches}场` +
+          (h.note ? ` · ${h.note}` : ''),
+        style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
+      })
+    } else if (this.flags.flow && this.flow) {
+      const f = this.flow
+      const maxN = Math.max(1, ...f.cells.map((c) => c.n))
+      for (const c of f.cells) {
+        if (c.mean_dx === 0 && c.mean_dy === 0) continue
+        const cx = this.sx((c.x + 0.5) * f.cell_m)
+        const cy = this.sy((c.y + 0.5) * f.cell_m)
+        const len = Math.max(4, Math.min(14, c.speed * this.scale * 0.6))
+        const ang = Math.atan2(c.mean_dy, c.mean_dx)
+        const alpha = 0.15 + 0.6 * Math.min(1, c.n / maxN)
+        const ex = cx + Math.cos(ang) * len
+        const ey = cy + Math.sin(ang) * len
+        g.setStrokeStyle({ width: 1.5, color: 0x9fe8e8, alpha })
+        g.moveTo(cx, cy).lineTo(ex, ey)
+        // arrow head
+        const hx = Math.cos(ang + Math.PI * 0.85) * 3
+        const hy = Math.sin(ang + Math.PI * 0.85) * 3
+        g.moveTo(ex, ey).lineTo(ex + hx, ey + hy)
+      }
+      this.overlayLabel = new Text({
+        text: `运动流场 ${f.phase || '全场'} · ${f.rtype || '全部兵种'} · n=${f.n} · ${f.n_matches}场`,
+        style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
+      })
+    } else {
+      // fire / hit / engage / routes layers: honest placeholder until wired
+      this.overlayLabel = new Text({
+        text: '该图层数据在后续里程碑接入（不提供伪造数据）',
+        style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
+      })
+    }
+
+    if (this.overlayLabel) {
+      this.overlayLabel.x = this.ox + 8
+      this.overlayLabel.y = this.oy + 8
+      this.overlay.addChild(this.overlayLabel)
+    }
+    this.overlay.addChild(g)
   }
 
   destroy(): void {
@@ -357,20 +435,5 @@ export class TacticalField {
         `t=${sec}s  raw 1Hz  ·  ${t.toFixed(1)}s  interpolated  ·  ${n} 秒数据`
     }
     loop()
-  }
-
-  private drawOverlayPlaceholder(): void {
-    this.overlay.removeChildren()
-    const g = new Graphics()
-    g.rect(this.ox, this.oy, FIELD_X * this.scale, FIELD_Y * this.scale)
-      .fill({ color: 0x3fc9c9, alpha: 0.04 })
-    this.overlay.addChild(g)
-    const label = new Text({
-      text: '该图层数据将在 M4（条件热力图/流场）接入',
-      style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
-    })
-    label.x = this.ox + 8
-    label.y = this.oy + 8
-    this.overlay.addChild(label)
   }
 }

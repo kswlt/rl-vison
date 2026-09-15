@@ -50,9 +50,18 @@ def heatmap(state=Depends(get_state),
         school = tid
     cond = _cond(school, rtype, phase, t0, t1, outpost, base_hit,
                  numbers, robot_hp, robot_ammo)
-    return A.occupancy_heatmap(state.store, cond, cell_m=cell_m,
-                               school=school, rtype=rtype,
-                               limit_games=limit_games)
+    params = dict(team=school, rtype=rtype, phase=phase, t0=t0, t1=t1,
+                  outpost=outpost, base_hit=base_hit, numbers=numbers,
+                  robot_hp=robot_hp, robot_ammo=robot_ammo,
+                  cell_m=cell_m, limit_games=limit_games)
+
+    def _compute():
+        return A.occupancy_heatmap(state.store, cond, cell_m=cell_m,
+                                   school=school, rtype=rtype,
+                                   limit_games=limit_games).model_dump()
+
+    data = state.cached("heatmap", params, _compute)
+    return HeatmapOut(**data)
 
 
 @router.get("/analytics/flow", response_model=FlowOut)
@@ -70,8 +79,16 @@ def flow(state=Depends(get_state),
             raise HTTPException(404, f"unknown team {team}")
         school = tid
     cond = _cond(school, rtype, phase, t0, t1, outpost, False, numbers)
-    return FL.flow_field(state.store, cond, cell_m=cell_m, school=school,
-                         rtype=rtype, limit_games=limit_games)
+    params = dict(team=school, rtype=rtype, phase=phase, t0=t0, t1=t1,
+                  outpost=outpost, numbers=numbers, cell_m=cell_m,
+                  limit_games=limit_games)
+
+    def _compute():
+        return FL.flow_field(state.store, cond, cell_m=cell_m, school=school,
+                             rtype=rtype, limit_games=limit_games).model_dump()
+
+    data = state.cached("flow", params, _compute)
+    return FlowOut(**data)
 
 
 @router.get("/analytics/formation", response_model=FormationOut)
