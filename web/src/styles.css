@@ -143,13 +143,23 @@ select:focus, input:focus { border-color: var(--ai); }
   top: 12px;
   right: 12px;
   width: 420px;
-  max-width: 40%;
   z-index: 20;
   background: var(--bg-elev);
   border: 1px solid var(--border-strong);
   border-radius: 6px;
   overflow: hidden;
   box-shadow: 0 8px 24px #000a;
+  display: flex;
+  flex-direction: column;
+}
+.video-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--border-strong) 50%, var(--border-strong) 60%, transparent 60%, transparent 70%, var(--border-strong) 70%, var(--border-strong) 80%, transparent 80%);
 }
 .video-dragbar {
   display: flex;

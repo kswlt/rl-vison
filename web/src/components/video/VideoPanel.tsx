@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../api/client'
 import { useTimeline } from '../../state/store'
 import type { Video } from '../../types'
@@ -46,11 +46,16 @@ export default function VideoPanel({ gameId }: Props) {
   )
 
   // platform timeline -> bilibili seek target
+  // Throttled: only re-seek when the integer second changes (not every animation frame).
+  const lastSeekGameSec = useRef(-1)
   useEffect(() => {
-    if (!active) { setVideoTarget(0); return }
+    if (!active) { setVideoTarget(0); lastSeekGameSec.current = -1; return }
     if (active.alignment_status !== 'calibrated') return
+    const gSec = Math.floor(time)
+    if (gSec === lastSeekGameSec.current) return
+    lastSeekGameSec.current = gSec
     let cancelled = false
-    api.mapToVideo(active.id, Math.floor(time)).then((r) => {
+    api.mapToVideo(active.id, gSec).then((r) => {
       if (!cancelled && r.video_time != null) {
         setVideoTarget(r.video_time)
         setSeekToken((k) => k + 1)
@@ -147,7 +152,7 @@ export default function VideoPanel({ gameId }: Props) {
       {active && (
         <>
           <BiliPlayer bvid={active.bvid} startAt={videoTarget} seekToken={seekToken}
-            height={170} />
+            height={240} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
             <span className="dim">平台 {formatT(time)}</span>
             <span style={{ color: active.alignment_status === 'calibrated'

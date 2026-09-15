@@ -38,7 +38,7 @@ export default function BiliPlayer({ bvid, startAt, seekToken, height = 180 }: B
         </div>
       ) : (
         <iframe
-          key={`${bvid}-${seekToken}-${t}`}
+          key={`${bvid}-${t}`}
           src={src}
           title="bilibili"
           allowFullScreen
