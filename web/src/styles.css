@@ -39,8 +39,8 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 
 .app {
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   height: 100%;
   min-width: 960px;
 }
@@ -113,14 +113,55 @@ select, input[type="number"] {
 }
 select:focus, input:focus { border-color: var(--ai); }
 
-/* ---------- main three-column layout ---------- */
-.main {
-  display: grid;
-  grid-template-columns: 240px 1fr 280px;
+/* ---------- map fills all space, side panels are floating drawers ---------- */
+.map-full {
+  flex: 1;
+  position: relative;
   min-height: 0;
-  gap: 1px;
-  background: var(--border);
+  overflow: hidden;
+  display: flex;
 }
+.map-full > .map-stage {
+  flex: 1;
+}
+.drawer-toggle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 22px;
+  height: 60px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.drawer-toggle.left { left: 0; border-radius: 0 6px 6px 0; }
+.drawer-toggle.right { right: 0; border-radius: 6px 0 0 6px; }
+.drawer-toggle:hover { color: var(--text); background: var(--panel); }
+
+.drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 260px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  z-index: 9;
+  overflow-y: auto;
+  transition: transform .25s ease;
+  display: flex;
+  flex-direction: column;
+}
+.left-drawer { left: 0; border-left: none; transform: translateX(-100%); }
+.right-drawer { right: 0; border-right: none; transform: translateX(100%); }
+.drawer.open { transform: translateX(0); }
+
 .panel {
   background: var(--panel);
   min-height: 0;
@@ -149,10 +190,15 @@ select:focus, input:focus { border-color: var(--ai); }
 /* map is the visual centre */
 .map-panel { background: var(--bg); }
 .video-panel-wrap {
-  border-top: 1px solid var(--border);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
   background: var(--panel);
-  max-height: 252px;
+  border-top: 1px solid var(--border);
+  max-height: 200px;
   overflow-y: auto;
+  z-index: 8;
 }
 @media (max-width: 1180px) {
   .video-panel-wrap { display: none; }
