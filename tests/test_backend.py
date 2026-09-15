@@ -250,3 +250,26 @@ def test_disagreement_scoring(db_path):
     assert diff >= 2.0
     dead = rl.disagreement(dict(alive=False), dict(goal_dx=1, goal_dy=0))
     assert dead == 1.5
+
+# ---------------------------------------------------------------------------
+# Milestone 9: similar-state retrieval
+# ---------------------------------------------------------------------------
+def test_similar_state_endpoint(client):
+    r = client.get("/api/analytics/similar-states",
+                   params={"game_id": 1001, "t": 30, "camp": "红",
+                           "rtype": "步兵3", "top_k": 3})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["n_candidates"] > 0
+    for it in data["items"]:
+        assert "similarity" in it and "human_next" in it
+    assert "历史相似局面" in data["note"]
+
+
+def test_similar_state_excludes_query_game(client):
+    r = client.get("/api/analytics/similar-states",
+                   params={"game_id": 1001, "t": 30, "camp": "红",
+                           "rtype": "步兵3", "top_k": 20})
+    items = r.json()["items"]
+    # 测试库只有 2 场；排除本场后应全部来自 1002
+    assert all(it["game_id"] == 1002 for it in items)

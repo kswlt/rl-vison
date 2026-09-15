@@ -135,3 +135,18 @@ def event_response(state=Depends(get_state),
     kinds = [kind] if kind else None
     return EV.event_response(state.store, tid, rtype=rtype, horizon=horizon,
                              kinds=kinds, limit_games=limit_games)
+
+
+@router.get("/analytics/similar-states")
+def similar_states(game_id: int = Query(...), t: float = Query(...),
+                   camp: str = Query("红", pattern="^[红蓝]$"),
+                   rtype: str = Query("步兵3", pattern="^(步兵3|步兵4)$"),
+                   top_k: int = Query(20, ge=1, le=50),
+                   state=Depends(get_state)):
+    """Top-K historical situations similar to (game, t, camp, rtype)."""
+    from ...tactical.similarity import search as _similarity_search
+    try:
+        return _similarity_search(state.store.db_path, game_id, t, camp,
+                                  rtype, top_k=top_k)
+    except ValueError as e:
+        raise HTTPException(422, str(e))

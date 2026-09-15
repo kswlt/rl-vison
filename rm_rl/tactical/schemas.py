@@ -327,8 +327,11 @@ class DisagreementItem(BaseModel):
     game_id: int
     t: float
     score: float
-    rtype: str
-    camp: str
+    target_disagree: bool = False
+    fire_disagree: bool = False
+    nav_cos: float = 0.0
+    rtype: str = ""
+    camp: str = ""
     ai: Dict[str, Any] = Field(default_factory=dict)
     human: Dict[str, Any] = Field(default_factory=dict)
 
@@ -337,17 +340,6 @@ class DisagreementOut(BaseModel):
     model: str
     items: List[DisagreementItem] = Field(default_factory=list)
     note: str = ""
-
-
-class DisagreementOut(BaseModel):
-    game_id: int
-    t: float
-    score: float
-    target_disagree: bool = False
-    fire_disagree: bool = False
-    nav_cos: float = 0.0
-    rtype: str = ""
-    camp: str = ""
 
 
 class SimilarStateOut(BaseModel):

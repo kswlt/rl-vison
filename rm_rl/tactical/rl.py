@@ -58,6 +58,7 @@ class TacticalRL:
         self._prior = None
         self._team_cache: Dict[str, np.ndarray] = {}
         self._runners: Dict[str, MLPPolicyRunner] = {}
+        self._game_cache: Dict[int, object] = {}
         vis_map = vis_map or os.environ.get("RMUC_VIS_MAP",
                                             os.path.join(REPO_ROOT, "data", "vis_map.npz"))
         team_prior = team_prior or os.environ.get(
@@ -100,15 +101,21 @@ class TacticalRL:
         return self._runners[model]
 
     # -- observation --------------------------------------------------------
+    def _load_game(self, game_id: int):
+        if game_id not in self._game_cache:
+            import sqlite3
+            con = sqlite3.connect(self.db_path)
+            try:
+                game = BD.load_game_arrays(con, game_id)
+            finally:
+                con.close()
+            self._game_cache = {game_id: game}   # keep only the latest game
+        return self._game_cache[game_id]
+
     def obs_at(self, game_id: int, t: int, agent_type: str,
                camp: str) -> np.ndarray:
         """Full observation vector at second ``t`` for one ego robot."""
-        import sqlite3
-        con = sqlite3.connect(self.db_path)
-        try:
-            game = BD.load_game_arrays(con, game_id)
-        finally:
-            con.close()
+        game = self._load_game(game_id)
         if game.T == 0:
             raise ValueError(f"game {game_id} has no data")
         t = int(np.clip(t, 1, game.T))
@@ -121,12 +128,7 @@ class TacticalRL:
                      camp: str, action_mode: str = "tactical",
                      goal_horizon: int = 5) -> Optional[Dict]:
         """What the human actually did around second ``t`` (for disagreement)."""
-        import sqlite3
-        con = sqlite3.connect(self.db_path)
-        try:
-            game = BD.load_game_arrays(con, game_id)
-        finally:
-            con.close()
+        game = self._load_game(game_id)
         if game.T == 0:
             return None
         acts = F.build_action_raw(game, camp, agent_type,

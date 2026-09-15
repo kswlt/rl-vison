@@ -291,6 +291,23 @@ export interface DisagreementOut {
   note: string
 }
 
+export interface SimilarState {
+  game_id: number
+  t: number
+  camp: string
+  rtype: string
+  similarity: number
+  human_next: { goal_dx?: number; goal_dy?: number; fire?: boolean }
+  trajectory: { dt: number; x: number; y: number }[]
+}
+
+export interface SimilarStatesOut {
+  query: { game_id: number; t: number; camp: string; rtype: string }
+  n_candidates: number
+  items: SimilarState[]
+  note: string
+}
+
 /** Global tactical conditions used by the analysis panels. */
 export interface TacticalConditions {
   team: string

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { useAI, useConditions, useLayers, useMatchup, useSelection, useTimeline } from '../state/store'
-import type { DisagreementOut, Formation, Heatmap, Inference, Matchup, VideoLibrary } from '../types'
+import type { DisagreementOut, Formation, Heatmap, Inference, Matchup, SimilarStatesOut, VideoLibrary } from '../types'
 import * as echarts from 'echarts'
 import { theme } from '../theme'
 import BiliPlayer from './video/BiliPlayer'
@@ -233,12 +233,13 @@ function MatchupTab() {
 
 function AiTab() {
   const gameId = useSelection((s) => s.gameId)
+  const selectGame = useSelection((s) => s.selectGame)
   const time = useTimeline((s) => s.time)
   const seek = useTimeline((s) => s.seek)
   const setAI = useAI((s) => s.setAI)
   const layers = useLayers((s) => s.layers)
   const setLayer = useLayers((s) => s.setLayer)
-  const [algo, setAlgo] = useState('iql')
+  const [algo, setAlgo] = useState('bc')
   const [rt, setRt] = useState('步兵3')
   const [result, setResult] = useState<Inference | null>(null)
   const [loading, setLoading] = useState(false)
@@ -246,6 +247,9 @@ function AiTab() {
   const [dis, setDis] = useState<DisagreementOut | null>(null)
   const [disLoading, setDisLoading] = useState(false)
   const [disErr, setDisErr] = useState('')
+  const [sim, setSim] = useState<SimilarStatesOut | null>(null)
+  const [simLoading, setSimLoading] = useState(false)
+  const [simErr, setSimErr] = useState('')
 
   const MODEL_STATE: Record<string, string> = {
     bc: 'BC', iql: 'IQL', dt: 'Decision Transformer',
@@ -254,15 +258,19 @@ function AiTab() {
   const runNow = () => {
     if (!gameId) { setErr('请先选择一场比赛'); return }
     setErr(''); setLoading(true)
-    api.inference({ game_id: gameId, t: Math.floor(time), camp: '红', rtype: rt, algo })
-      .then((r) => {
-        setResult(r)
-        setAI(r.human && (r.human as { alive?: boolean }).alive !== false
-          ? { egoX: 14, egoY: 7.5, gx: r.goal_dx, gy: r.goal_dy,
-            label: `${MODEL_STATE[algo]} · 目标 ${r.target_label}` }
-          : null)
-        setLayer('rl', true)
-      })
+    Promise.all([
+      api.inference({ game_id: gameId, t: Math.floor(time), camp: '红', rtype: rt, algo }),
+      api.state(gameId, Math.floor(time)),
+    ]).then(([r, st]) => {
+      setResult(r)
+      const ego = st.robots.find((b) => b.camp === '红' && b.rtype === rt)
+      setAI(r.human && (r.human as { alive?: boolean }).alive !== false
+        ? { egoX: ego ? ego.x : 14, egoY: ego ? ego.y : 7.5,
+          gx: r.goal_dx, gy: r.goal_dy,
+          label: `${MODEL_STATE[algo]} · 目标 ${r.target_label}` }
+        : null)
+      setLayer('rl', true)
+    })
       .catch((e) => setErr(String(e)))
       .finally(() => setLoading(false))
   }
@@ -276,9 +284,23 @@ function AiTab() {
       .finally(() => setDisLoading(false))
   }
 
+  const findSimilar = () => {
+    if (!gameId) { setSimErr('请先选择一场比赛'); return }
+    setSimErr(''); setSimLoading(true); setSim(null)
+    api.similarStates({ game_id: gameId, t: Math.floor(time), camp: '红', rtype: rt, top_k: 20 })
+      .then(setSim)
+      .catch((e) => setSimErr(String(e)))
+      .finally(() => setSimLoading(false))
+  }
+
   const jumpTo = (t: number) => {
     seek(Math.max(0, t - 2))
     setLayer('rl', true)
+  }
+
+  const jumpToMatch = (gid: number, t: number) => {
+    selectGame(gid)
+    setTimeout(() => seek(Math.max(0, t - 2)), 400)
   }
 
   return (
@@ -305,11 +327,15 @@ function AiTab() {
         <button className="btn primary" onClick={runNow} disabled={loading || !gameId}>
           {loading ? '推理中…' : `分析当前局面（${Math.floor(time)}s）`}
         </button>
+        <button className="btn" onClick={findSimilar} disabled={simLoading || !gameId}>
+          {simLoading ? '检索中…' : '查找相似历史局面'}
+        </button>
         <button className="btn" onClick={scanAll} disabled={disLoading || !gameId}>
           {disLoading ? '扫描中…' : '扫描全场人机分歧 Top 20'}
         </button>
         {err && <div className="empty">{err}</div>}
         {disErr && <div className="empty">{disErr}</div>}
+        {simErr && <div className="empty">{simErr}</div>}
         <div className="dim" style={{ fontSize: 10.5 }}>
           {result?.human && (result.human as { alive?: boolean }).alive === false
             ? '当前机器人已阵亡，无真人动作可对比'
@@ -377,6 +403,35 @@ function AiTab() {
                   <span style={{ color: d.score > 1.5 ? 'var(--warn)' : 'var(--ai)' }}>
                     分歧 {d.score}
                   </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {sim && (
+          <div>
+            <div className="dim" style={{ fontSize: 12, marginBottom: 4 }}>
+              相似历史局面 Top {sim.items.length}（候选 {sim.n_candidates}；{sim.note}）
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {sim.items.length === 0 && <div className="empty">未找到相似局面</div>}
+              {sim.items.map((s, i) => (
+                <button key={i} onClick={() => jumpToMatch(s.game_id, s.t)}
+                  style={{ background: 'var(--panel-alt)', border: '1px solid var(--border)',
+                    borderRadius: 4, padding: '6px 8px', cursor: 'pointer',
+                    color: 'inherit', fontFamily: 'inherit', fontSize: 12,
+                    textAlign: 'left' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                    <span>#{i + 1} 比赛 {s.game_id} · t={Math.round(s.t)}s · {s.camp}方 {s.rtype}</span>
+                    <span style={{ color: 'var(--ai)' }}>相似度 {s.similarity.toFixed(3)}</span>
+                  </div>
+                  <div className="dim" style={{ fontSize: 10.5, marginTop: 2 }}>
+                    后续行为：移动 {s.human_next.goal_dx?.toFixed(1) ?? '?'}m,
+                    {s.human_next.goal_dy?.toFixed(1) ?? '?'}m · 开火
+                    {s.human_next.fire ? '是' : '否'}
+                    {s.trajectory.map((p) => ` · +${p.dt}s (${p.x}, ${p.y})`)}
+                  </div>
                 </button>
               ))}
             </div>

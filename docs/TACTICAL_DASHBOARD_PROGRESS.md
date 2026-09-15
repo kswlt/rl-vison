@@ -7,28 +7,31 @@
 
 ## 最近一次验证结果
 
-- **M8（Offline RL 集成）验证（2026-09-15，进行中）**：
-  - 先验生成（真实数据）：`python -m rm_rl.data.team_prior --db … --out data/team_prior.json`
-    → 1226 条目 / 96 队 / cold-start 96（7.8%）；`python -m rm_rl.data.vis_map --db …
-    --out data/vis_map.npz --limit-games 100` → 112 cells / pair-coverage 71.0% /
-    global_engage_rate 0.0315。
-  - 推理管线（真实调用链，非 mock）：`rm_rl/tactical/rl.py` 的 `TacticalRL.obs_at`
-    走 `load_game_arrays → features.build_obs`（完整 161-D：ego/时间/6友军/6敌军/建筑/经济/
-    vis_map 优先级/team prior，蓝方镜像）；`human_action` 复用 `build_action_raw(tactical)`
-    读真人动作；`disagreement` = nav 方向余弦 + fire XOR + target argmax 差（[0,~3]）。
-  - `POST /api/inference` 无权重时返回 **501 诚实报错**（"模型未加载（IQL）：…请先运行
-    训练管线"），已验证；`POST /api/inference/disagreements` 逐秒扫描 Top-K，note 明示
-    "仅提示值得复盘，不表示 AI 更正确"。
-  - 训练数据构建（150 场子集）：`build_dataset --agent infantry --action-mode tactical
-    --goal-horizon 5 --vis-map data/vis_map.npz --team-prior data/team_prior.json
-    --limit-games 150` → obs 161 / act 10 / train 529 集 220,698 步 / val 59 集 24,570 步。
-  - 前端：AI 分析 tab（模型/兵种选择 → 当前局面推理 → 建议卡片：移动/目标/开火/人机分歧 +
-    青色 RL 建议箭头 overlay + 真人实际动作对比；全场分歧扫描 Top 20 列表点击跳转）构建通过。
-  - `npm run build` 通过；`pytest tests` → **22 passed**（新增 inference 501 / obs 161-D /
-    human_action / disagreement 评分 5 测试）。
-  - **进行中**：`train_offline --config configs/infantry_bc_tactical.yaml --max-steps 6000`
-    在 CPU 后台训练（数据就绪 22 万步）；完成后 `/api/inference` 从 501 变为真实输出并做
-    浏览器端到端验证，再提交 M8 最终 commit。
+- **M8 完成 + M9 完成（2026-09-15）**：
+  - **真实 BC 模型训练**：`build_dataset --limit-games 150`（train 220,698 步 / val 24,570 步，
+    obs 161 / act 10）→ `train_offline --config configs/infantry_bc_tactical.yaml
+    --max-steps 6000`（CPU，step 3000 best action_mse=0.0669，fire_acc 0.83，
+    target_top1_named 0.40）→ `rm_runs/infantry_bc_tactical/best.pt`（1.3 MB，gitignore 不入库）。
+  - **真实推理链路（非 mock）**：`POST /api/inference`（bc）返回 200——完整 161-D obs
+    （load_game_arrays → build_obs，含 vis_map/team_prior 先验）+ `MLPPolicyRunner.step` +
+    `build_action_raw` 真人对比 + 分歧分。验证样例：BC 建议 移动(-1.40,-2.07) 目标无/开火否，
+    真人 移动(-0.94,3.66)，分歧 1.663；`POST /api/inference/disagreements` 整场 419 s 扫描
+    0.3 s（游戏缓存生效）→ Top-K。iql/dt 无权重仍 501 诚实。
+  - **浏览器端到端（生产 build）**：AI 分析 tab → BC 分析当前局面 → 建议卡片
+    （移动 4.8m/-0.5m、目标 哨兵 27%、开火 不建议、人机分歧 1.089）+ 地图青色 RL 建议箭头
+    overlay（起点=真实机器人坐标）+ 真人实际动作对比；分歧扫描 Top 20（4.6 s）；
+    相似局面 Top 20（比赛/时间/相似度/后续行为/未来轨迹，点击跳转对应比赛+时间）；
+    console 错误 0。
+  - **M9 相似局面**：`rm_rl/tactical/similarity.py` 20-D 特征（剩余时间/结构 HP/存活/阵型
+    centroid+宽深/ego 位置 HP yaw/敌队相对），加权 L2；全 613 场特征表预计算 44.9 s 走磁盘
+    缓存（100,348 行），查询 ~1 s；`GET /api/analytics/similar-states` 返回候选数 +
+    Top-K + 后续行为 + 未来轨迹，note 明示"相似≠预测"。
+  - `npm run build` 通过；`pytest tests` → **24 passed**（新增 M8 5 项 + M9 2 项）。
+  - **遗留说明**：IQL / Decision Transformer 无现成权重（训练管线完整，跑
+    `train_offline --config configs/infantry_iql_tactical.yaml` / `infantry_dt_tactical.yaml`
+    即可）；vis_map 当前为 100 场子集版（71% pair-coverage），全量重跑命令见下。
+- **M8a（推理管线+AI tab）验证（2026-09-15）**：见上；`POST /api/inference` 无权重 501 诚实、
+  先验生成（team_prior 96 队 / vis_map 112 cells）、150 场训练集构建完成。
 - **M7（Bilibili 视频集成）验证（2026-09-15）**：
   - 视频库：`python -m rm_rl.tactical.seed_videos` 幂等写入全国赛第五十三场
     （上海交通大学 交龙战队 VS 广东工业大学 DynamicX战队，BV18Tup6uEg5），
@@ -120,23 +123,30 @@
     多视频切换、●已校准/○未校准、暂停时 [设为比赛开始]/[新增锚点] 标定、平台时间→B站时间
     单向驱动）；历史证据 tab 视频库（预览 + 关联到比赛，全国赛明确标注为视频库演示）。
 
-- [x] **M8a（Offline RL 推理管线 + AI 前端 tab，模型训练中）**
+- [x] **M8 Offline RL 集成（完成）**
   - 后端 `rm_rl/tactical/rl.py`：`TacticalRL` 懒加载 vis_map/team_prior/policy；
-    完整 161-D obs 构造（复用 `build_obs`，禁止只改 ego x/y）、真人动作读取、人机分歧评分；
-    `POST /api/inference` + `POST /api/inference/disagreements`（Pydantic 校验、501 诚实报错、
-    Top-K 扫描）。
-  - 前端：AI 分析 tab（BC/IQL/DT 选择、当前局面推理、青色 RL 建议箭头 overlay、
-    真人实际动作对比、全场分歧 Top 20 点击跳转）；types/client 补充 Inference/Disagreement。
-  - 数据/训练：team_prior.json（96 队）、vis_map.npz（100 场版）、150 场训练集已构建；
-    BC 模型训练中（`rm_runs/infantry_bc_tactical`）。
+    完整 161-D obs 构造（复用 `build_obs`，禁止只改 ego x/y）、真人动作读取、人机分歧评分
+    （nav 余弦 + fire XOR + target argmax，[0,~3]）；游戏数据 LRU 缓存。
+  - `POST /api/inference`（真实 BC 权重推理）+ `POST /api/inference/disagreements`
+    （整场逐秒扫描 Top-K）；iql/dt 无权重 501 诚实，不伪造推理。
+  - 前端 AI 分析 tab：BC/IQL/DT 选择、当前局面推理建议卡片（移动/目标/开火/分歧）、
+    青色 RL 建议箭头 overlay（起点=真实 ego 坐标）、真人实际动作对比、全场分歧 Top 20
+    点击跳转。
+  - 真实训练：150 场子集 BC 模型（`rm_runs/infantry_bc_tactical/best.pt`，gitignore）。
+- [x] **M9 历史相似局面检索（完成）**
+  - `rm_rl/tactical/similarity.py`：20-D curated 特征（时间/结构/存活/阵型/自身/敌队相对），
+    可配权重加权 L2；全 613 场特征表磁盘缓存（100,348 行）；查询排除本场、返回 Top-K +
+    真人后续行为 + 未来 10/20 s 轨迹 + "相似≠预测" 声明。
+  - `GET /api/analytics/similar-states` + 前端 AI tab「查找相似历史局面」列表点击跳转。
 
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M8 收尾**（BC 训练完成后验证真实推理 + 浏览器端到端）；**M9 相似历史局面检索**；
-  **M10 战术卡 + 自动战术总结**。
+  - AI 分析：bc 权重就绪即可用；iql/dt 需先训练。
+- 下一步：**M10 战术卡 + 自动战术总结**（一页赛前战术卡、规则式战术总结、样本量、
+  证据链接、打印友好布局）。
 
 ## 如何运行（随里程碑更新）
 
@@ -176,8 +186,8 @@ cd web && npm run build                 # 前端构建验证
 - 全联盟 heatmap/flow 未加 limit 时逐场扫描（613 场），M4 引入 cache。
 - 刷新页面后前端选择状态重置（M2 未做 URL/持久化），后续里程碑补充。
 - B 站 iframe 双向控制受跨域限制：以平台时间轴为主时间轴，iframe 定位为单向 seek（M7 落实）。
-- **RL 推理当前依赖训练好的权重**：`rm_runs/infantry_bc_tactical` 训练完成前
-  `/api/inference` 返回 501（诚实"模型未加载"），前端 AI tab 同样提示；不提供伪造推理结果。
+- **RL 推理当前依赖训练好的权重**：`rm_runs/infantry_bc_tactical` 已就绪；iql/dt
+  需要运行对应 config 训练后才可用（无权重时 501 诚实"模型未加载"，前端同样提示）。
 - **vis_map 当前为 100 场子集版（pair-coverage 71%）**：全量 613 场版需去掉
   `--limit-games` 重跑（耗时较长）；后续可直接覆盖 data/vis_map.npz。
 
@@ -209,4 +219,5 @@ cd web && npm run build                 # 前端构建验证
 - M5 提交：`5b1fc3d` feat(analytics): draw live formation polygons… + formation time-series。
 - M6 提交：`d8e38b5` feat(opponent): add matchup analysis… with map overlay and event-case drill-down。
 - M7 提交：`3108444` feat(video): add bilibili match video integration…（视频库 + 关联 + 标定 UI）。
-- M8a 提交：`<M8a SHA>`（训练完成后随 M8 最终提交更新）。
+- M8a 提交：`5bcec77` feat(ai): add tactical RL inference API and AI analysis tab…（+ `9a56d20` tsbuildinfo）。
+- M8/M9 提交：见下一条（本阶段提交后更新 SHA）。

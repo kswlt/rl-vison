@@ -84,11 +84,11 @@ def disagreements(state=Depends(get_state),
     match = state.store.match(game_id)
     if match is None:
         raise HTTPException(404, f"game_id {game_id} not found")
-    T = match.T if hasattr(match, "T") else 0
+    rl = state.rl
+    game = rl._load_game(game_id)
+    T = game.T
     if T <= 0:
         raise HTTPException(422, "game has no data")
-
-    rl = state.rl
     camps = [S.CAMP_RED, S.CAMP_BLUE]
     items: list[DisagreementItem] = []
     t0 = time.time()
