@@ -22,7 +22,6 @@ export default function VideoPanel({ gameId }: Props) {
   const [activeId, setActiveId] = useState<number | null>(null)
   const [videoTarget, setVideoTarget] = useState(0)
   const [inputVt, setInputVt] = useState('')
-  const [seekToken, setSeekToken] = useState(0)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [newBvid, setNewBvid] = useState('')
@@ -58,7 +57,6 @@ export default function VideoPanel({ gameId }: Props) {
     api.mapToVideo(active.id, gSec).then((r) => {
       if (!cancelled && r.video_time != null) {
         setVideoTarget(r.video_time)
-        setSeekToken((k) => k + 1)
       }
     }).catch(() => {})
     return () => { cancelled = true }
@@ -151,7 +149,7 @@ export default function VideoPanel({ gameId }: Props) {
 
       {active && (
         <>
-          <BiliPlayer bvid={active.bvid} startAt={videoTarget} seekToken={seekToken}
+          <BiliPlayer bvid={active.bvid} startAt={videoTarget}
             height={240} />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
             <span className="dim">平台 {formatT(time)}</span>

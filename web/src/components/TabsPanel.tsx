@@ -504,7 +504,7 @@ function EvidenceTab() {
             </div>
             {previewId === v.id && (
               <div style={{ marginTop: 8 }}>
-                <BiliPlayer bvid={v.bvid} startAt={0} seekToken={0} height={180} />
+                <BiliPlayer bvid={v.bvid} startAt={0} height={180} />
               </div>
             )}
           </div>
