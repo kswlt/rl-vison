@@ -343,7 +343,7 @@ export class TacticalField {
   }
 
   private sx(x: number): number { return this.ox + x * this.scale }
-  private sy(y: number): number { return this.oy + y * this.scale }
+  private sy(y: number): number { return this.oy + (FIELD_Y - y) * this.scale }
 
   private drawField(): void {
     this.world.removeChildren()
