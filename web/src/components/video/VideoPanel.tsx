@@ -81,16 +81,7 @@ export default function VideoPanel({ gameId }: Props) {
   }
 
   if (!videos || videos.length === 0) {
-    return (
-      <div className="video-panel-wrap">
-        <div className="panel" style={{ padding: 8 }}>
-          <div className="dim" style={{ fontSize: 11 }}>录像</div>
-          <div className="empty" style={{ fontSize: 12, padding: '8px 0' }}>
-            未关联录像 —— 可在「历史证据」页从视频库关联
-          </div>
-        </div>
-      </div>
-    )
+    return null
   }
 
   return (

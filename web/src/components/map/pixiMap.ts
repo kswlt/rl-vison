@@ -23,7 +23,7 @@ const DANGER = 0xf85149
 const GRID = 0x2a323d
 
 const TYPE_LABEL: Record<string, string> = {
-  英雄: 'H', 工程: 'E', 步兵3: 'I3', 步兵4: 'I4', 空中: 'A', 哨兵: 'S',
+  英雄: '1', 工程: '2', 步兵3: '3', 步兵4: '4', 空中: '5', 哨兵: '6',
   基地: 'B', 前哨站: 'O',
 }
 
