@@ -132,7 +132,7 @@ export default function TacticalMap() {
 
   const [layersOpen, setLayersOpen] = useState(false)
 
-  // live win-probability bar (heuristic: HP + structure + numbers + time)
+  // live win-probability (trained WinPredictor, calibrated)
   const [winPct, setWinPct] = useState<number | null>(null)
   const lastWinT = useRef(-1)
   useEffect(() => {
@@ -141,33 +141,13 @@ export default function TacticalMap() {
     if (tSec === lastWinT.current) return
     lastWinT.current = tSec
     let cancelled = false
-    api.state(gameId, tSec).then((st) => {
-      if (cancelled) return
-      let rHp = 0, bHp = 0, rAlive = 0, bAlive = 0
-      for (const r of st.robots) {
-        if (r.camp === '红') { rHp += r.hp; if (r.alive) rAlive++ }
-        else { bHp += r.hp; if (r.alive) bAlive++ }
-      }
-      let rBase = 0, bBase = 0, rOutpost = 0, bOutpost = 0
-      for (const b of st.buildings || []) {
-        const hp = b.hp, max = b.maxhp || 1
-        if (b.camp === '红') {
-          if (/基地/.test(b.rtype)) rBase = hp / max
-          else if (/前哨/.test(b.rtype)) rOutpost = hp / max
-        } else {
-          if (/基地/.test(b.rtype)) bBase = hp / max
-          else if (/前哨/.test(b.rtype)) bOutpost = hp / max
-        }
-      }
-      const totalRobot = rHp + bHp || 1
-      const hpRatio = rHp / totalRobot
-      const numDiff = (rAlive - bAlive) / 6  // -1..1
-      const structDiff = (rBase + rOutpost * 0.5) - (bBase + bOutpost * 0.5)
-      // logistic: HP ratio dominant, numbers + structure secondary
-      const logit = (hpRatio - 0.5) * 4 + numDiff * 0.8 + structDiff * 1.2
-      const p = 1 / (1 + Math.exp(-logit))
-      setWinPct(Math.round(p * 100))
-    }).catch(() => {})
+    // red-side probability; blue is 1-p
+    fetch(`/api/win/current?game_id=${gameId}&t=${tSec}&camp=红`)
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return
+        if (typeof d.win_prob === 'number') setWinPct(Math.round(d.win_prob * 100))
+      }).catch(() => {})
     return () => { cancelled = true }
   }, [gameId, time])
 

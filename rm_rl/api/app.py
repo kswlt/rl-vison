@@ -23,7 +23,7 @@ from ..tactical.cache import get_or_compute as _get_or_compute
 from ..tactical.meta import MetaStore
 from ..tactical.rl import TacticalRL
 from ..tactical.team_identity import TeamIdentity, build_team_identity_from_db
-from .routes import analytics, inference, matches, teams, videos
+from .routes import analytics, inference, matches, teams, videos, win
 
 DEFAULT_DB = os.path.join("dataset", "rmuc_2026_region_dataset.sqlite")
 DEFAULT_META = os.path.join("data", "tactical_meta.sqlite")
@@ -80,6 +80,7 @@ def create_app(db_path: str = DEFAULT_DB, meta_path: str = DEFAULT_META,
     app.include_router(analytics.router, prefix="/api")
     app.include_router(videos.router, prefix="/api")
     app.include_router(inference.router, prefix="/api")
+    app.include_router(win.router, prefix="/api")
 
     @app.get("/api/health")
     def health():
