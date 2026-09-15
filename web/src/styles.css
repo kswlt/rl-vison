@@ -137,6 +137,49 @@ select:focus, input:focus { border-color: var(--ai); }
   color: var(--text);
 }
 
+/* ---------- floating video window (top-right) ---------- */
+.video-float {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 420px;
+  max-width: 40%;
+  z-index: 20;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px #000a;
+}
+.video-close {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  z-index: 2;
+  background: transparent;
+  border: none;
+  color: var(--text-dim);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.video-close:hover { color: var(--text); }
+.video-reopen {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.video-reopen:hover { color: var(--text); }
+
 /* ---------- replay split: map left / video right ---------- */
 .replay-split {
   flex: 1;
@@ -241,9 +284,7 @@ select:focus, input:focus { border-color: var(--ai); }
 .video-panel-wrap {
   background: var(--panel);
   border: none;
-  max-height: none;
   overflow-y: auto;
-  flex: 1;
 }
 .map-stage {
   flex: 1;
