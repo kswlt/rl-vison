@@ -30,6 +30,21 @@
 [ezthor/rm-battlescope](https://github.com/ezthor/rm-battlescope)
 (MIT License),该项目同样基于本届官方数据集。
 
+## Bilibili 比赛视频
+
+战术情报平台(web/ + rm_rl/api/)仅**保存视频的元数据**——原始 URL、BVID、
+标题与人工标定的时间对齐锚点(`data/tactical_meta.sqlite` 中的 `match_videos`
+与 `video_alignment_points`),并在页面中以官方 `player.bilibili.com`
+iframe 嵌入播放。本仓库**不下载、不重新分发**任何视频内容;视频版权归
+原上传者/平台所有。视频库中的种子条目(全国赛第五十三场
+上海交通大学 vs 广东工业大学,BV18Tup6uEg5)仅作关联演示,不与
+2026 区域赛逐秒数据伪造绑定。
+
+## 前端依赖
+
+`web/` 使用 React、TypeScript、Vite、PixiJS、ECharts 等开源库,各自遵循其
+MIT / Apache-2.0 等开源许可,详见各依赖包内 LICENSE。
+
 ## 商标
 
 RoboMaster、RMUC 及相关名称与标识为大疆创新(DJI)的商标。本项目为独立的

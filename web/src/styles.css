@@ -367,3 +367,16 @@ select:focus, input:focus { border-color: var(--ai); }
 .chip.active { color: var(--ai); border-color: var(--ai); cursor: pointer; }
 .chip.clickable { cursor: pointer; }
 .chip.clickable:hover { border-color: var(--ai); }
+
+/* Tactical brief: print-friendly one-page layout */
+.brief-scroll { max-height: 100%; }
+@media print {
+  body * { visibility: hidden; }
+  .brief-scroll, .brief-scroll * { visibility: visible; }
+  .brief-scroll {
+    position: absolute; left: 0; top: 0; width: 100%;
+    max-height: none; overflow: visible; background: #fff; color: #111;
+  }
+  .brief-scroll .dim { color: #444; }
+  .brief-scroll .btn { border: 1px solid #888; background: #fff; color: #111; }
+}

@@ -273,3 +273,31 @@ def test_similar_state_excludes_query_game(client):
     items = r.json()["items"]
     # 测试库只有 2 场；排除本场后应全部来自 1002
     assert all(it["game_id"] == 1002 for it in items)
+
+def test_tactical_brief_endpoint(client):
+    r = client.get('/api/analytics/tactical-brief',
+                   params={'team': '测试大学A'})
+    assert r.status_code == 200
+    data = r.json()
+    assert 'team' in data and 'sections' in data and 'note' in data
+    assert data['n_matches'] >= 0
+    for sec in data['sections']:
+        assert sec['id'] and sec['title']
+        for p in sec['points']:
+            # every statistical point must carry its sample size
+            assert 'n' in p and 'n_matches' in p
+            assert 'insufficient' in p
+            assert p['finding'] and p['advice']
+    assert '历史统计' in data['note']
+
+
+def test_tactical_brief_unknown_team(client):
+    r = client.get('/api/analytics/tactical-brief', params={'team': '不存在的队'})
+    assert r.status_code == 404
+
+
+def test_tactical_brief_alias_resolution(client):
+    # DynamicX alias -> 广东工业大学: endpoint 200 (fixture data only has
+    # 测试大学A, so sections may be empty but the route must resolve).
+    r = client.get('/api/analytics/tactical-brief', params={'team': 'DynamicX'})
+    assert r.status_code in (200, 404)

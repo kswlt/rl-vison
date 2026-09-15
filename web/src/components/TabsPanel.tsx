@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
 import { useAI, useConditions, useLayers, useMatchup, useSelection, useTimeline } from '../state/store'
-import type { DisagreementOut, Formation, Heatmap, Inference, Matchup, SimilarStatesOut, VideoLibrary } from '../types'
+import type { DisagreementOut, Formation, Heatmap, Inference, Matchup, SimilarStatesOut, TacticalBrief, VideoLibrary } from '../types'
 import * as echarts from 'echarts'
 import { theme } from '../theme'
 import BiliPlayer from './video/BiliPlayer'
@@ -12,6 +12,7 @@ const TABS = [
   { key: 'matchup', label: '对手比较' },
   { key: 'ai', label: 'AI分析' },
   { key: 'evidence', label: '历史证据' },
+  { key: 'brief', label: '赛前战术卡' },
 ] as const
 
 export default function TabsPanel() {
@@ -35,6 +36,7 @@ export default function TabsPanel() {
         {tab === 'matchup' && <MatchupTab />}
         {tab === 'ai' && <AiTab />}
         {tab === 'evidence' && <EvidenceTab />}
+        {tab === 'brief' && <BriefTab />}
       </div>
     </div>
   )
@@ -583,4 +585,106 @@ function FormationTab() {
   if (!form) return <div className="empty">加载阵型数据…</div>
   if (form.points.length < 2) return <div className="empty">暂无阵型数据</div>
   return <div ref={ref} style={{ height: 190, width: '100%' }} />
+}
+
+function BriefTab() {
+  const teamId = useSelection((s) => s.teamId)
+  const [brief, setBrief] = useState<TacticalBrief | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!teamId) {
+      setBrief(null)
+      setError('')
+      return
+    }
+    setLoading(true)
+    setError('')
+    api.tacticalBrief(teamId)
+      .then(setBrief)
+      .catch(() => setError('生成失败（无该队数据或数据不足）'))
+      .finally(() => setLoading(false))
+  }, [teamId])
+
+  const jump = (gameId: number, t: number) => {
+    useSelection.getState().selectGame(gameId)
+    useTimeline.getState().seek(t)
+  }
+
+  if (!teamId) return <div className="empty">选择对手后生成赛前战术卡</div>
+  if (loading) return <div className="empty">生成战术总结中…（基于真实历史统计，非在线大模型）</div>
+  if (error) return <div className="empty">{error}</div>
+  if (!brief) return <div className="empty">暂无数据</div>
+
+  return (
+    <div className="brief-scroll" style={{ overflow: 'auto', height: '100%' }}>
+      <div style={{
+        display: 'flex', alignItems: 'baseline', gap: 10, padding: '2px 0 8px',
+        borderBottom: '1px solid var(--border)', marginBottom: 10,
+      }}>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>
+          {brief.team} · 赛前战术卡
+        </span>
+        <span className="dim" style={{ fontSize: 11 }}>
+          {brief.n_matches} 场比赛 · 生成于 {brief.generated_at}
+        </span>
+        <span style={{ marginLeft: 'auto' }}>
+          <button className="btn" style={{ fontSize: 11, padding: '3px 10px' }}
+            onClick={() => window.print()}>
+            打印 / 导出
+          </button>
+        </span>
+      </div>
+
+      {brief.sections.length === 0 && (
+        <div className="empty">当前队伍暂无可生成的有效战术规律（样本不足）</div>
+      )}
+
+      {brief.sections.map((sec) => (
+        <div key={sec.id} style={{ marginBottom: 12 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+            {sec.title}
+            <span className="dim" style={{ fontSize: 11, fontWeight: 400, marginLeft: 8 }}>
+              {sec.summary}
+            </span>
+          </div>
+          {sec.points.map((p) => (
+            <div key={p.id} style={{
+              borderLeft: '2px solid var(--ai)', padding: '6px 10px', margin: '6px 0',
+              background: 'rgba(255,255,255,0.02)', borderRadius: 3,
+            }}>
+              <div style={{ fontSize: 12.5 }}>
+                {p.finding}
+                {p.insufficient && (
+                  <span style={{ color: 'var(--warn)', marginLeft: 6, fontSize: 11 }}>
+                    样本不足
+                  </span>
+                )}
+              </div>
+              <div className="dim" style={{ fontSize: 12, marginTop: 3 }}>
+                建议：{p.advice}
+              </div>
+              {p.cases.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                  {p.cases.map((c, i) => (
+                    <button key={i} className="btn" style={{ fontSize: 11, padding: '2px 8px' }}
+                      title={`点击跳转到该场比赛 ${Math.round(c.t)}s`}
+                      onClick={() => jump(c.game_id, c.t)}>
+                      {c.opponent || `比赛${c.game_id}`} · {Math.floor(c.t / 60)}:{String(Math.round(c.t) % 60).padStart(2, '0')}
+                      {' '}({c.behavior})
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+
+      <div className="dim" style={{ fontSize: 11, marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 6 }}>
+        {brief.note}
+      </div>
+    </div>
+  )
 }

@@ -308,6 +308,40 @@ export interface SimilarStatesOut {
   note: string
 }
 
+export interface BriefCase {
+  game_id: number
+  t: number
+  opponent: string
+  behavior: string
+}
+
+export interface BriefPoint {
+  id: string
+  title: string
+  finding: string
+  advice: string
+  n: number
+  n_matches: number
+  insufficient: boolean
+  metric: Record<string, number | string>
+  cases: BriefCase[]
+}
+
+export interface BriefSection {
+  id: string
+  title: string
+  summary: string
+  points: BriefPoint[]
+}
+
+export interface TacticalBrief {
+  team: string
+  n_matches: number
+  generated_at: string
+  sections: BriefSection[]
+  note: string
+}
+
 /** Global tactical conditions used by the analysis panels. */
 export interface TacticalConditions {
   team: string

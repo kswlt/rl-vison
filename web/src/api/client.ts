@@ -7,6 +7,7 @@ import type {
   DisagreementOut, EventBehavior, EventItem, Flow, Formation, Heatmap,
   Inference, Match, MatchState, MatchStates, MatchTimeline, Matchup, Team,
   TeamMatch, TeamProfile, Video, VideoAnchor, VideoLibrary, SimilarStatesOut,
+  TacticalBrief,
   TacticalConditions,
 } from '../types'
 
@@ -109,4 +110,6 @@ export const api = {
   similarStates: (params: { game_id: number; t: number; camp?: string; rtype?: string; top_k?: number }) =>
     get<SimilarStatesOut>(`/analytics/similar-states?${new URLSearchParams(
       Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString()}`),
+  tacticalBrief: (team: string) =>
+    get<TacticalBrief>(`/analytics/tactical-brief?team=${encodeURIComponent(team)}`),
 }

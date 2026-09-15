@@ -12,7 +12,7 @@ from ...tactical import matchup as MU
 from ...tactical.conditions import Condition
 from ...tactical.formations import formation_series
 from ...tactical.schemas import (EventBehaviorOut, FlowOut, FormationOut,
-                                 HeatmapOut, MatchupOut)
+                                 HeatmapOut, MatchupOut, TacticalBriefOut)
 from .deps import get_state
 
 router = APIRouter(tags=["analytics"])
@@ -150,3 +150,14 @@ def similar_states(game_id: int = Query(...), t: float = Query(...),
                                   rtype, top_k=top_k)
     except ValueError as e:
         raise HTTPException(422, str(e))
+
+
+@router.get("/analytics/tactical-brief", response_model=TacticalBriefOut)
+def tactical_brief(state=Depends(get_state),
+                   team: str = Query(..., description="school name or alias")):
+    """One-page rule-based tactical brief for pre-match meeting use."""
+    from ...tactical.brief import tactical_brief as _brief
+    tid = state.identity.resolve(team)
+    if not tid:
+        raise HTTPException(404, f"unknown team {team}")
+    return _brief(state.store, tid)

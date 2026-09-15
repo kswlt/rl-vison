@@ -7,6 +7,30 @@
 
 ## 最近一次验证结果
 
+- **M10 完成（2026-09-15）——赛前战术卡 + 规则式自动战术总结**：
+  - 新增 `rm_rl/tactical/brief.py`：**确定性规则式总结器（不依赖在线 LLM）**，全部复用
+    平台已有真实统计——开局经 `flow_field(phase=open30)` 算左右半场活动占比、
+    前哨受压经 `event_response(kinds=[outpost_lt50])` 取 15s 内回防/保持/前压分布、
+    残局经 opponent profile 的 endgame_shrink/position_fix vs 联盟平均。
+  - 每条结论必带 `n`（样本数）+ `n_matches`（比赛数）+ 真实案例列表（≤6 条，
+    含 opponent/时间/行为），n<5 自动标"样本不足"；note 明示"历史统计，非未来预测"。
+  - 新 schema：`BriefPoint/BriefSection/TacticalBriefOut`（清理两处旧版重复定义）；
+    新 API：`GET /api/analytics/tactical-brief?team=<school|alias>`（Pydantic 校验，
+    alias 解析，未知队 404）。
+  - **广工真实数据验证（20 场）**：开局 0-30s 右半场活动 67%（n=3595）→
+    建议优先控制中左、避免无准备正面争右；前哨 HP<50% 后 15s 保持 56%/回防 16%/前压 14%
+    （n=112，20 场）→ 行为较分散、注意多线拉扯（附 6 个真实案例按钮，点击跳转对应比赛+时刻）；
+    残局收缩程度 0.33 vs 联盟平均 -7.21 → 增加横向拉扯避免进入重叠火力区。
+  - 前端：新增「赛前战术卡」tab（`BriefTab`）——生成按钮/自动加载、三栏结论卡片、
+    证据 case 列表（点击 `selectGame + seek` 联动地图与时间轴）、[打印/导出] 按钮 +
+    `@media print` 一页打印布局。
+  - 修复：behaviors 值本身已是百分比（原先重复 ×100 导致 1610%）、`_rate` 传 tuple
+    （`100*top` → `top[1]`）、BehaviorCase 字段名（`behavior` → `detail`）。
+  - `npm run build` 通过；`pytest tests` → **27 passed**（新增 M10 3 项：brief 端点结构 +
+    样本量字段、未知队 404、alias 解析）。浏览器端到端（生产 build）：选广工 →
+    赛前战术卡 tab → 开局/前哨受压/残局三段 + 证据案例按钮 + 打印按钮，console 0 错误。
+  - 补 `THIRD_PARTY_NOTICES.md`：Bilibili 仅存元数据（URL/BVID/锚点）不下载不分发声明。
+  - M10 提交 SHA 见下方 Git 历史。
 - **M8 完成 + M9 完成（2026-09-15）**：
   - **真实 BC 模型训练**：`build_dataset --limit-games 150`（train 220,698 步 / val 24,570 步，
     obs 161 / act 10）→ `train_offline --config configs/infantry_bc_tactical.yaml
@@ -138,6 +162,14 @@
     可配权重加权 L2；全 613 场特征表磁盘缓存（100,348 行）；查询排除本场、返回 Top-K +
     真人后续行为 + 未来 10/20 s 轨迹 + "相似≠预测" 声明。
   - `GET /api/analytics/similar-states` + 前端 AI tab「查找相似历史局面」列表点击跳转。
+- [x] **M10 赛前战术卡 + 自动战术总结（完成）**
+  - `rm_rl/tactical/brief.py` 规则式总结器（无在线 LLM）：开局（flow open30 左右占比）、
+    前哨受压（event_response outpost_lt50 15s 行为分布）、残局（profile vs 联盟平均）。
+  - `GET /api/analytics/tactical-brief?team=`（alias 解析；Pydantic 校验；未知队 404；
+    每条结论带 n/n_matches/insufficient/真实案例列表）。
+  - 前端「赛前战术卡」tab：生成入口、结论卡片、证据案例按钮（点击跳比赛+时刻）、
+    [打印/导出] + `@media print` 一页打印布局。
+  - 补 `THIRD_PARTY_NOTICES.md`（B站仅存元数据声明）。
 
 ## 当前状态
 
@@ -145,8 +177,9 @@
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
   - AI 分析：bc 权重就绪即可用；iql/dt 需先训练。
-- 下一步：**M10 战术卡 + 自动战术总结**（一页赛前战术卡、规则式战术总结、样本量、
-  证据链接、打印友好布局）。
+- **M0–M10 全部完成**。剩余可选增强：IQL/DT 真权重训练、全量 vis_map、相似度查询索引优化、
+  更细粒度条件组合的战术卡段落。
+- `pytest tests` → 27 passed；`npm run build` 通过。
 
 ## 如何运行（随里程碑更新）
 
@@ -201,12 +234,12 @@ cd web && npm run build                 # 前端构建验证
 
 ## 下一阶段
 
-- M4：heatmap / conditional heatmap / flow field / engagement / layer manager + 预计算缓存。
-- M5：阵型分析时间序列图（后端已有，前端补全 + 地图实时阵型多边形）。
-- M6：Opponent Intelligence 页面（画像、联盟对比、事件响应、状态转移、matchup）。
-- M7：Bilibili 集成（iframe、锚点标定 UI、证据片段）。
-- M8：RL 推理集成（IQL/BC/DT、policy overlay、人机分歧）。
-- M9：相似局面检索。M10：战术卡与自动总结。
+- M0–M10 全部完成并已推送。可选增强（非阻塞）：
+  - 训练 IQL/DT 真权重（`train_offline --config configs/infantry_iql_tactical.yaml` /
+    `infantry_dt_tactical.yaml`）使 AI tab 三种模型可切换；
+  - 全量 vis_map（去掉 `--limit-games` 重跑，替换 100 场子集版）；
+  - 战术卡增加更多条件组合段落（人数优/劣势、阵亡触发、能量机关）；
+  - 相似度查询加 ANN 索引；选择状态 URL 持久化。
 
 ## Git 记录
 
@@ -220,4 +253,6 @@ cd web && npm run build                 # 前端构建验证
 - M6 提交：`d8e38b5` feat(opponent): add matchup analysis… with map overlay and event-case drill-down。
 - M7 提交：`3108444` feat(video): add bilibili match video integration…（视频库 + 关联 + 标定 UI）。
 - M8a 提交：`5bcec77` feat(ai): add tactical RL inference API and AI analysis tab…（+ `9a56d20` tsbuildinfo）。
-- M8/M9 提交：见下一条（本阶段提交后更新 SHA）。
+- M8/M9 提交：`712d34a` feat(ai,similarity): train real BC checkpoint, wire full-obs inference +
+  disagreement scan, and add similar-state retrieval with cached 613-game feature table。
+- M10 提交：本阶段完成后更新 SHA（feat(brief): add rule-based tactical brief + one-page brief tab）。

@@ -352,20 +352,31 @@ class SimilarStateOut(BaseModel):
     video_time: Optional[float] = None
 
 
-class BriefSection(BaseModel):
+class BriefPoint(BaseModel):
+    id: str
     title: str
-    findings: List[str] = Field(default_factory=list)
-    suggestion: str = ""
+    finding: str
+    advice: str
     n: int = 0
     n_matches: int = 0
+    insufficient: bool = False
+    metric: Dict[str, Any] = Field(default_factory=dict)
+    cases: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class BriefSection(BaseModel):
+    id: str
+    title: str
+    summary: str = ""
+    points: List[BriefPoint] = Field(default_factory=list)
 
 
 class TacticalBriefOut(BaseModel):
-    team_id: str
-    school_name: str
+    team: str
+    n_matches: int = 0
     generated_at: str = ""
     sections: List[BriefSection] = Field(default_factory=list)
-    reliable: bool = True
+    note: str = ""
 
 
 # ---------------------------------------------------------------------------
