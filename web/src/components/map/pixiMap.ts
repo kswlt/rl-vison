@@ -21,7 +21,6 @@ const GOOD = 0x4dd97e
 const WARN = 0xf7d154
 const DANGER = 0xf85149
 const GRID = 0x2a323d
-const FIELD_BG = 0x11161d
 
 const TYPE_LABEL: Record<string, string> = {
   英雄: 'H', 工程: 'E', 步兵3: 'I3', 步兵4: 'I4', 空中: 'A', 哨兵: 'S',
@@ -108,7 +107,8 @@ export class TacticalField {
     const app = new Application()
     await app.init({
       resizeTo: this.mount,
-      background: FIELD_BG,
+      background: 0x000000,
+      backgroundAlpha: 0,
       antialias: true,
       resolution: Math.min(window.devicePixelRatio || 1, 2),
       autoDensity: true,
@@ -356,7 +356,7 @@ export class TacticalField {
       this.world.addChild(this.fieldBg)
     }
     // base fill + half-court tints
-    g.rect(this.ox, this.oy, w, h).fill({ color: 0x131a22, alpha: this.fieldBg ? 0.55 : 1 })
+    g.rect(this.ox, this.oy, w, h).fill({ color: 0x131a22, alpha: 0.55 })
     g.rect(this.ox, this.oy, w / 2, h).fill({ color: 0xff5b3d, alpha: 0.05 })
     g.rect(this.ox + w / 2, this.oy, w / 2, h).fill({ color: 0x4d9dff, alpha: 0.05 })
     // grid

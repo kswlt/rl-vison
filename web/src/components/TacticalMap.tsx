@@ -130,8 +130,15 @@ export default function TacticalMap() {
     })
   }, [layers])
 
+  const [layersOpen, setLayersOpen] = useState(false)
+
   return (
-    <div className="map-stage">
+    <div className="map-stage" style={{
+      backgroundImage: 'url(/api/field/background.jpeg)',
+      backgroundSize: '100% 100%',
+      backgroundPosition: 'center',
+      backgroundColor: '#0d1117',
+    }}>
       <div ref={mountRef} style={{ position: 'absolute', inset: 0 }} />
 
       {!ready && (
@@ -140,25 +147,33 @@ export default function TacticalMap() {
         </div>
       )}
 
-      {/* layers control */}
-      <div style={{
-        position: 'absolute', top: 10, right: 10,
-        background: 'rgba(22,27,34,.92)', border: `1px solid ${theme.borderStrong}`,
-        borderRadius: 6, padding: 8, fontSize: 11, minWidth: 150,
-        color: theme.textDim, maxHeight: 'calc(100% - 70px)', overflowY: 'auto',
-      }}>
-        <div style={{ fontWeight: 600, marginBottom: 4, color: theme.text }}>
-          Layers
-        </div>
-        {LAYER_DEFS.map((l) => (
-          <label key={l.key} style={{ display: 'flex', gap: 6, padding: '1px 0',
-            cursor: 'pointer', alignItems: 'center' }}>
-            <input type="checkbox" checked={!!layers[l.key]}
-              onChange={() => toggleLayer(l.key)}
-              style={{ accentColor: theme.ai }} />
-            {l.label}
-          </label>
-        ))}
+      {/* layers control — collapsed by default, toggle button */}
+      <div style={{ position: 'absolute', top: 10, right: 10, zIndex: 5 }}>
+        <button onClick={() => setLayersOpen(v => !v)} style={{
+          background: 'rgba(22,27,34,.92)', border: `1px solid ${theme.borderStrong}`,
+          borderRadius: 6, padding: '6px 10px', fontSize: 11, color: theme.text,
+          cursor: 'pointer',
+        }}>
+          Layers {layersOpen ? '▾' : '▸'}
+        </button>
+        {layersOpen && (
+          <div style={{
+            marginTop: 4,
+            background: 'rgba(22,27,34,.95)', border: `1px solid ${theme.borderStrong}`,
+            borderRadius: 6, padding: 8, fontSize: 11, minWidth: 150,
+            color: theme.textDim, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto',
+          }}>
+            {LAYER_DEFS.map((l) => (
+              <label key={l.key} style={{ display: 'flex', gap: 6, padding: '1px 0',
+                cursor: 'pointer', alignItems: 'center' }}>
+                <input type="checkbox" checked={!!layers[l.key]}
+                  onChange={() => toggleLayer(l.key)}
+                  style={{ accentColor: theme.ai }} />
+                {l.label}
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       {gameId != null && loadState === 'loading' && (
