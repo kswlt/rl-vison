@@ -5,8 +5,8 @@
  */
 import type {
   EventBehavior, EventItem, Flow, Formation, Heatmap, Match, MatchState,
-  MatchStates, MatchTimeline, Team, TeamMatch, TeamProfile, Video, VideoAnchor,
-  TacticalConditions,
+  MatchStates, MatchTimeline, Matchup, Team, TeamMatch, TeamProfile, Video,
+  VideoAnchor, TacticalConditions,
 } from '../types'
 
 const BASE = '/api'
@@ -81,6 +81,8 @@ export const api = {
   eventResponse: (team: string, rtype = '', horizon = 15, kind = '') =>
     get<EventBehavior[]>('/analytics/event-response',
       { team, rtype, horizon, kind }),
+  matchup: (teamA: string, teamB: string) =>
+    get<Matchup>('/analytics/matchup', { team_a: teamA, team_b: teamB }),
 
   videos: (gameId: number) => get<Video[]>(`/videos/${gameId}`),
   addVideo: (v: { game_id: number; platform?: string; bvid: string; url: string; title: string; offset?: number | null }) =>

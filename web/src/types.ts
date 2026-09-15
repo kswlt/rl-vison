@@ -159,6 +159,29 @@ export interface Flow {
   n_matches: number
 }
 
+export interface Matchup {
+  team_a: string
+  team_b: string
+  matches: Match[]
+  first_contact: {
+    n: number
+    times: number[]
+    mean_t?: number | null
+    median_t?: number | null
+    cells: { x: number; y: number }[]
+    note: string
+  }
+  overlap: HeatmapCell[]
+  a_heat: HeatmapCell[]
+  b_heat: HeatmapCell[]
+  nx: number
+  ny: number
+  cell_m: number
+  n: number
+  n_matches: number
+  note: string
+}
+
 export interface FormationPoint {
   t: number
   centroid_x: number

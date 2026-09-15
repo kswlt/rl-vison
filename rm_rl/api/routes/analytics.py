@@ -8,10 +8,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from ...tactical import analytics as A
 from ...tactical import events as EV
 from ...tactical import flow as FL
+from ...tactical import matchup as MU
 from ...tactical.conditions import Condition
 from ...tactical.formations import formation_series
 from ...tactical.schemas import (EventBehaviorOut, FlowOut, FormationOut,
-                                 HeatmapOut)
+                                 HeatmapOut, MatchupOut)
 from .deps import get_state
 
 router = APIRouter(tags=["analytics"])
@@ -89,6 +90,28 @@ def flow(state=Depends(get_state),
 
     data = state.cached("flow", params, _compute)
     return FlowOut(**data)
+
+
+@router.get("/analytics/matchup", response_model=MatchupOut)
+def matchup(state=Depends(get_state),
+            team_a: str = Query(..., description="school or alias"),
+            team_b: str = Query(..., description="school or alias"),
+            cell_m: float = Query(1.0, ge=0.5, le=2.0),
+            limit_games: int = Query(0, ge=0, le=613)):
+    ta = state.identity.resolve(team_a)
+    tb = state.identity.resolve(team_b)
+    if not ta:
+        raise HTTPException(404, f"unknown team {team_a}")
+    if not tb:
+        raise HTTPException(404, f"unknown team {team_b}")
+    params = dict(team_a=ta, team_b=tb, cell_m=cell_m, limit_games=limit_games)
+
+    def _compute():
+        return MU.matchup(state.store, ta, tb, cell_m=cell_m,
+                          limit_games=limit_games).model_dump()
+
+    data = state.cached("matchup", params, _compute)
+    return MatchupOut(**data)
 
 
 @router.get("/analytics/formation", response_model=FormationOut)

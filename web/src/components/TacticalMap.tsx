@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import { useConditions, useSelection, useTimeline, useLayers, LAYER_DEFS } from '../state/store'
-import type { EventItem, Flow, Heatmap, MatchStates } from '../types'
+import { useConditions, useSelection, useTimeline, useLayers, LAYER_DEFS, useMatchup } from '../state/store'
+import type { EventItem, Flow, Heatmap, MatchStates, Matchup } from '../types'
 import { TacticalField } from './map/pixiMap'
 import { theme } from '../theme'
 
@@ -16,6 +16,22 @@ export default function TacticalMap() {
   const layers = useLayers((s) => s.layers)
   const toggleLayer = useLayers((s) => s.toggleLayer)
   const conditions = useConditions((s) => s.conditions)
+  const matchupSel = useMatchup()
+
+  // load matchup overlay when activated (routes layer shows it)
+  useEffect(() => {
+    const field = fieldRef.current
+    if (!field || !ready) return
+    if (!matchupSel.active || !matchupSel.teamA || !matchupSel.teamB) {
+      field.setMatchup(null)
+      return
+    }
+    let cancelled = false
+    api.matchup(matchupSel.teamA, matchupSel.teamB).then((m: Matchup) => {
+      if (!cancelled) field.setMatchup(m)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [ready, matchupSel.active, matchupSel.teamA, matchupSel.teamB])
 
   // load conditional heatmap / flow overlays when conditions change
   useEffect(() => {

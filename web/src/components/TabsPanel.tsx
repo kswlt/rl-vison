@@ -1,9 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { api } from '../api/client'
-import { useConditions, useSelection } from '../state/store'
-import type { Formation, Heatmap } from '../types'
+import { useConditions, useLayers, useMatchup, useSelection } from '../state/store'
+import type { Formation, Heatmap, Matchup } from '../types'
 import * as echarts from 'echarts'
-import { useRef } from 'react'
 import { theme } from '../theme'
 
 const TABS = [
@@ -32,7 +31,7 @@ export default function TabsPanel() {
       <div className="tab-body" style={{ flex: 1 }}>
         {tab === 'heat' && <HeatTab />}
         {tab === 'formation' && <FormationTab />}
-        {tab === 'matchup' && <div className="empty">Matchup Analysis（M6 实现）</div>}
+        {tab === 'matchup' && <MatchupTab />}
         {tab === 'ai' && <div className="empty">AI 分析：RL 集成在 M8 接入</div>}
         {tab === 'evidence' && <div className="empty">历史证据：录像集成在 M7 接入</div>}
       </div>
@@ -84,6 +83,149 @@ function HeatTab() {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+function MatchupTab() {
+  const teams = useSelection((s) => s.teams)
+  const teamId = useSelection((s) => s.teamId)
+  const matchupSel = useMatchup()
+  const [a, setA] = useState('')
+  const [b, setB] = useState('')
+  const [data, setData] = useState<Matchup | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const chartRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    // default: current team vs its most common league rival later; for now
+    // default team A = selected team, team B = first other team
+    if (teamId && !a) setA(teamId)
+  }, [teamId, a])
+
+  const run = () => {
+    if (!a || !b || a === b) {
+      setError('请选择两支不同队伍')
+      return
+    }
+    setError('')
+    setLoading(true)
+    setData(null)
+    api.matchup(a, b).then((m) => {
+      setData(m)
+      matchupSel.setMatchup(m.team_a, m.team_b)
+      // make sure the routes layer is on so the map shows the overlay
+      useLayers.getState().setLayer('routes', true)
+    }).catch((e) => setError(String(e)))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    if (!chartRef.current || !data || data.first_contact.times.length < 2) return
+    const chart = echarts.init(chartRef.current)
+    chart.setOption({
+      backgroundColor: 'transparent',
+      tooltip: { trigger: 'axis' },
+      grid: { left: 40, right: 12, top: 16, bottom: 22 },
+      xAxis: {
+        type: 'category', name: '首次交火时间(s)',
+        data: data.first_contact.times.map((t) => Math.round(t)),
+        axisLabel: { color: theme.textFaint, fontSize: 10 },
+        axisLine: { lineStyle: { color: theme.borderStrong } },
+        nameTextStyle: { color: theme.textFaint, fontSize: 10 },
+      },
+      yAxis: {
+        type: 'value', name: '次数',
+        axisLabel: { color: theme.textFaint, fontSize: 10 },
+        splitLine: { lineStyle: { color: theme.border } },
+        nameTextStyle: { color: theme.textFaint, fontSize: 10 },
+      },
+      series: [{
+        type: 'bar', data: data.first_contact.times.map(() => 1),
+        itemStyle: { color: theme.warn },
+      }],
+    })
+    const onResize = () => chart.resize()
+    window.addEventListener('resize', onResize)
+    return () => { window.removeEventListener('resize', onResize); chart.dispose() }
+  }, [data])
+
+  const MiniHeat = ({ cells, color, label, max }: {
+    cells: { x: number; y: number; count: number }[]; color: string;
+    label: string; max: number
+  }) => (
+    <div>
+      <div className="dim" style={{ fontSize: 11, marginBottom: 4 }}>{label}</div>
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(28, 1fr)', gap: 1,
+        width: '100%', aspectRatio: '28/15',
+      }}>
+        {Array.from({ length: 28 * 15 }, (_, i) => {
+          const x = i % 28
+          const y = Math.floor(i / 28)
+          const c = cells.find((q) => q.x === x && q.y === y)
+          if (!c) return <div key={i} style={{ background: '#161b22' }} />
+          const alpha = 0.08 + 0.6 * Math.min(1, c.count / max)
+          return <div key={i} style={{ background: color, opacity: alpha }} />
+        })}
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 16 }}>
+      <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div>
+            <label className="dim" style={{ fontSize: 12 }}>我方 / A 队</label>
+            <select value={a} onChange={(e) => setA(e.target.value)}
+              style={{ width: '100%', marginTop: 2 }}>
+              <option value="">选择队伍…</option>
+              {teams.map((t) => <option key={t.team_id} value={t.team_id}>
+                {t.school_name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="dim" style={{ fontSize: 12 }}>对方 / B 队</label>
+            <select value={b} onChange={(e) => setB(e.target.value)}
+              style={{ width: '100%', marginTop: 2 }}>
+              <option value="">选择队伍…</option>
+              {teams.map((t) => <option key={t.team_id} value={t.team_id}>
+                {t.school_name}</option>)}
+            </select>
+          </div>
+          <button className="btn primary" onClick={run} disabled={loading}>
+            {loading ? '分析中…' : '分析对阵'}
+          </button>
+          {error && <div className="empty">{error}</div>}
+          <div className="dim" style={{ fontSize: 11 }}>
+            蓝色 = A 队历史位置 · 红色 = B 队历史位置 · 橙色 = 争夺区 ·
+            黄色圆点 = 首次交火位置。地图「历史典型路线」图层显示叠加。
+          </div>
+        </div>
+      </div>
+      <div>
+        {!data && !loading && <div className="empty">选择两队后分析历史对阵</div>}
+        {data && (
+          <>
+            <div style={{ display: 'flex', gap: 16, marginBottom: 8 }}>
+              <MiniHeat cells={data.a_heat} color="#4d9dff"
+                label={`${data.team_a} 典型位置（${data.a_heat.length} 格）`}
+                max={Math.max(1, ...data.a_heat.map((c) => c.count))} />
+              <MiniHeat cells={data.b_heat} color="#ff5b3d"
+                label={`${data.team_b} 典型位置（${data.b_heat.length} 格）`}
+                max={Math.max(1, ...data.b_heat.map((c) => c.count))} />
+            </div>
+            <div className="sample-line">
+              共同比赛 {data.n_matches} 场 · 首次交火 {data.first_contact.n} 次 ·
+              平均 {data.first_contact.mean_t ?? '—'}s ·
+              争夺区 {data.overlap.length} 格 · {data.note}
+            </div>
+            <div ref={chartRef} style={{ height: 120, width: '100%', marginTop: 6 }} />
+          </>
+        )}
+      </div>
     </div>
   )
 }

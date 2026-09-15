@@ -145,3 +145,20 @@ export const useLayers = create<LayersState>((set) => ({
     set((s) => ({ layers: { ...s.layers, [k]: !s.layers[k] } })),
   setLayer: (k, v) => set((s) => ({ layers: { ...s.layers, [k]: v } })),
 }))
+
+export interface MatchupState {
+  teamA: string
+  teamB: string
+  active: boolean
+  setMatchup: (a: string, b: string) => void
+  clearMatchup: () => void
+}
+
+/** Head-to-head analysis target pair (used by the matchup tab + map overlay). */
+export const useMatchup = create<MatchupState>((set) => ({
+  teamA: '',
+  teamB: '',
+  active: false,
+  setMatchup: (a, b) => set({ teamA: a, teamB: b, active: true }),
+  clearMatchup: () => set({ active: false }),
+}))

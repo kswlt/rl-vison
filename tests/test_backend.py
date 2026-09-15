@@ -138,6 +138,20 @@ def test_video_api(client):
 
 
 # ---------------------------------------------------------------------------
+# matchup
+# ---------------------------------------------------------------------------
+def test_matchup_endpoint(client):
+    r = client.get("/api/analytics/matchup",
+                   params={"team_a": "测试大学A", "team_b": "测试大学B"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["n_matches"] >= 1
+    assert data["a_heat"] and data["b_heat"]
+    assert "note" in data and "历史" in data["note"]
+    assert data["first_contact"]["n"] >= 0
+
+
+# ---------------------------------------------------------------------------
 # API surface
 # ---------------------------------------------------------------------------
 def test_health(client):

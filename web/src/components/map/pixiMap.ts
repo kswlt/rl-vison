@@ -10,7 +10,7 @@
 import {
   Application, Container, Graphics, Text,
 } from 'pixi.js'
-import type { EventItem, Flow, Heatmap, MatchState, RobotState } from '../../types'
+import type { EventItem, Flow, Heatmap, MatchState, Matchup, RobotState } from '../../types'
 
 export const FIELD_X = 28
 export const FIELD_Y = 15
@@ -71,6 +71,7 @@ export class TacticalField {
   private events: EventItem[] = []
   private heat: Heatmap | null = null
   private flow: Flow | null = null
+  private matchup: Matchup | null = null
   private overlayLabel: Text | null = null
   private targetTime = 0
   private displayTime = 0
@@ -166,13 +167,20 @@ export class TacticalField {
     this.applyLayers()
   }
 
+  /** Head-to-head matchup overlay: A blue / B red / contested orange. */
+  setMatchup(m: Matchup | null): void {
+    this.matchup = m
+    this.applyLayers()
+  }
+
   private applyLayers(): void {
     this.robotLayer.visible = this.flags.robots
     this.trailLayer.visible = this.flags.trail10 || this.flags.trailFull
     const wantHeat = (this.flags.heatmap || this.flags.condHeat) && !!this.heat
     const wantFlow = this.flags.flow && !!this.flow
-    this.overlay.visible = wantHeat || wantFlow ||
-      this.flags.fire || this.flags.hit || this.flags.engage || this.flags.routes
+    const wantMatchup = this.flags.routes && !!this.matchup
+    this.overlay.visible = wantHeat || wantFlow || wantMatchup ||
+      this.flags.fire || this.flags.hit || this.flags.engage
     if (!this.overlay.visible) {
       this.overlay.removeChildren()
       this.overlayLabel = null
@@ -221,6 +229,39 @@ export class TacticalField {
       }
       this.overlayLabel = new Text({
         text: `运动流场 ${f.phase || '全场'} · ${f.rtype || '全部兵种'} · n=${f.n} · ${f.n_matches}场`,
+        style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
+      })
+    } else if (this.flags.routes && this.matchup) {
+      // blue = team A routes, red = team B routes, orange = contested cells
+      const m = this.matchup
+      const maxA = Math.max(1, ...m.a_heat.map((c) => c.count))
+      const maxB = Math.max(1, ...m.b_heat.map((c) => c.count))
+      for (const c of m.a_heat) {
+        const alpha = 0.04 + 0.4 * Math.min(1, c.count / maxA)
+        g.rect(this.sx(c.x * m.cell_m), this.sy(c.y * m.cell_m),
+          this.scale * m.cell_m, this.scale * m.cell_m)
+          .fill({ color: 0x4d9dff, alpha })
+      }
+      for (const c of m.b_heat) {
+        const alpha = 0.04 + 0.4 * Math.min(1, c.count / maxB)
+        g.rect(this.sx(c.x * m.cell_m), this.sy(c.y * m.cell_m),
+          this.scale * m.cell_m, this.scale * m.cell_m)
+          .fill({ color: 0xff5b3d, alpha })
+      }
+      for (const c of m.overlap) {
+        g.rect(this.sx(c.x * m.cell_m), this.sy(c.y * m.cell_m),
+          this.scale * m.cell_m, this.scale * m.cell_m)
+          .fill({ color: 0xff8f4d, alpha: 0.55 })
+      }
+      // first-contact cells
+      for (const c of m.first_contact.cells ?? []) {
+        g.circle(this.sx((c.x + 0.5) * m.cell_m), this.sy((c.y + 0.5) * m.cell_m),
+          this.scale * 0.6)
+          .fill({ color: 0xf7d154, alpha: 0.8 })
+      }
+      this.overlayLabel = new Text({
+        text: `对阵分析 ${m.team_a} (蓝) vs ${m.team_b} (红) · 共同比赛 ${m.n_matches} 场 · ` +
+          `首次交火 n=${m.first_contact.n} · ${m.note}`,
         style: { fontFamily: 'sans-serif', fontSize: 11, fill: 0x7d8590 },
       })
     } else {

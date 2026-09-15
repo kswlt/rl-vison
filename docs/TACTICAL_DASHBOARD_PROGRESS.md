@@ -7,12 +7,22 @@
 
 ## 最近一次验证结果
 
+- **M6（对手情报 + 对阵分析）验证（2026-09-15）**：
+  - `GET /api/analytics/matchup?team_a=上海交通大学&team_b=广东工业大学`：3 场共同比赛、
+    3 次首次交火（平均 24.7 s）、争夺区 121 格、双方位置热力 304/164 格；响应带
+    `note="历史统计，非未来预测"`；首算 473 ms，走磁盘缓存。
+  - 浏览器端到端：对手比较 tab → 我方广工 / 对方上海交大 → 分析对阵 →
+    地图「历史典型路线」层自动开启并渲染三色 overlay（蓝=A 队 635px、红=B 队 18.8kpx、
+    橙=争夺区 9.8kpx）+ 黄色首次交火圆点 + overlay 标签；迷你热图 + 首次交火时间分布柱状图；
+    React 错误 0、console 错误 0。
+  - **修复**：事件回调中调用 zustand hook（`useLayers().setLayer`）导致 React #321
+    （minified "hooks" 错误）→ 改用 `useLayers.getState().setLayer`。
+  - `npm run build` 通过；`pytest tests` → **16 passed**（新增 matchup 测试）。
 - **M5（阵型分析）验证（2026-09-15）**：
   - 地图实时阵型：播放中每帧计算红蓝双方 centroid / 横向宽度 / 纵向纵深 / 平均间距 /
     连接多边形 / 边界框，红蓝两色低饱和半透明绘制（地图区域检出红 109 + 蓝 525 像素），
     控制台 0 错误。
   - 阵型时序图补全：宽度/纵深/平均间距/集中程度四序列 ECharts（后端 formations 数据）。
-  - `npm run build` 通过；`pytest tests` 15 passed（无后端改动）。
 - **M4（多维空间分析 + 缓存）验证**：磁盘缓存 profile 32.2s→3ms、heatmap 170ms→3ms；
   地图叠加层（条件热力图 + 运动流场）渲染，图层开关/条件联动，控制台 0 错误。
 - **M3（动态战术地图）验证**：states 批量端点 419s 首算 390ms；播放插值动画 + 事件动画正常。
@@ -56,12 +66,21 @@
     边界框（红蓝低饱和半透明），随机器人连续移动。
   - 阵型时序 tab 补全：宽度/纵深/平均间距/集中程度四序列（ECharts）。
 
+- [x] **M6 对手情报 + 对阵分析**
+  - 后端 `rm_rl/tactical/matchup.py`：双队历史对阵——共同比赛、双方典型位置热力、
+    几何首次交火检测（3 m 内、按秒取最早）、争夺区（双方占用同格）、首次交火时间分布；
+    响应显式标注"历史统计，非未来预测"；`GET /api/analytics/matchup` 走缓存。
+  - 前端：对手比较 tab（A/B 队伍选择 → 迷你位置热图 + 首次交火柱状图 + 样本行）；
+    Pixi 地图「历史典型路线」层渲染三色 overlay（蓝 A / 红 B / 橙争夺区 / 黄首次交火点），
+    分析时自动开启该图层；事件响应案例点击 → 跳转对应比赛 + 时间（地图/时间轴联动）。
+  - 修复事件回调误调 zustand hook（React #321）→ `.getState()`。
+
 ## 当前状态
 
 - 可运行：
   - 后端：`python -m rm_rl.api.app` → http://127.0.0.1:8000（生产模式自动托管 web/dist）。
   - 前端开发：`cd web && npm run dev` → http://localhost:5173（/api 代理到 8000）。
-- 下一步：**M6 Opponent Intelligence**（对手画像页、事件响应与状态转移、matchup 分析）。
+- 下一步：**M7 Bilibili 视频集成**（BVID 存储、iframe、官方锚点标定 UI、证据片段、比赛视频库）。
 
 ## 如何运行（随里程碑更新）
 
@@ -116,4 +135,5 @@ cd web && npm run build                 # 前端构建验证
 - M2 提交：`6a15e52` + `5ecfd99` feat(web): initialize React/TS tactical dashboard。
 - M3 提交：`54529b4` feat(map): add animated PixiJS tactical battlefield…。
 - M4 提交：`1b31641` feat(analytics): add disk tactical cache… + heatmap/flow overlays。
-- M5 提交：见下一条（本阶段提交后更新 SHA）。
+- M5 提交：`5b1fc3d` feat(analytics): draw live formation polygons… + formation time-series。
+- M6 提交：见下一条（本阶段提交后更新 SHA）。

@@ -230,6 +230,14 @@ class MatchupOut(BaseModel):
     matches: List[MatchOut] = Field(default_factory=list)
     first_contact: Dict[str, Any] = Field(default_factory=dict)
     overlap: List[HeatmapCell] = Field(default_factory=list)
+    a_heat: List[HeatmapCell] = Field(default_factory=list)
+    b_heat: List[HeatmapCell] = Field(default_factory=list)
+    nx: int = 28
+    ny: int = 15
+    cell_m: float = 1.0
+    n: int = 0
+    n_matches: int = 0
+    note: str = ""
 
 
 # ---------------------------------------------------------------------------
